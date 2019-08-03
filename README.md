@@ -10,6 +10,7 @@ WeatherClock is a full-screen home information screen intended to run on Android
 - Time in up to four configurable timezones;
 - Brief weather forecast for the next 12 hours;
 - Detailed weather forecast for the next four days.
+- Sunrise and sunset times for the next four days.
 
 This application is based on HTML/CSS/JS and thus is easily configurable by everyone familiar with those technologies. There is no need to learn Java or anything Android-specific. The application uses Apache Cordova to provide platform-specific functionality.
 
