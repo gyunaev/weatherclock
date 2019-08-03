@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Weather clock</title>
+    <meta charset="utf-8">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="msapplication-tap-highlight" content="no">
+    <meta name="viewport" content="initial-scale=1, width=device-width, viewport-fit=cover">
+
+    <link rel="stylesheet" href="css/clock.css">
+    <link rel="stylesheet" href="css/selectize.default.css">
+</head>
+<body class="">
+
+<!-- 
+   This is the main window 
+   -->
+<div class="container flex-justify-between" id="mainwindow">
+
+<!-- The row containing the top header: time/date on the left, weather on the right, timezones down -->
+<div class="flex-row flex-justify-between">
+
+    <!-- Left column: time, date, two timezones -->
+    <div class="flex-column">
+        <div id="nowtime"></div>
+        <div id="nowdate"></h2></div>
+        <div class="timezone text-align-left" id="timezone_0"></div>
+        <div class="timezone text-align-left" id="timezone_2"></div>
+    </div>
+
+    <!-- Right column: temp, weatherdesc, two timezones -->
+    <div class="flex-column">
+        <div id="nowtemp"></div>
+        <div id="nowweather"></h21></div>
+        <div class="timezone text-align-right" id="timezone_1"></div>
+        <div class="timezone text-align-right" id="timezone_3"></div>
+    </div>
+</div>
+
+<div class="spacer-time-current"></div>
+
+<!-- This column contains the current weather summary and hourly forecast -->
+<div class="flex-column">
+
+    <div class="flex-row flex-justify-center" id="weather-cur-summary">Forecast is not yet updated</div>
+    
+    <!-- Weather and forecast -->
+    <div class="flex-row flex-justify-center" id="weather-block-hourly" style="display: none;">
+
+        <!-- Current weather hourly -->
+        <div class="weather-hourly flex-column" id="weather-hourly-0">
+            <div class="weather-hourly-time" id="weather-cur-time-0"></div>
+            <div class="weather-hourly-details" id="weather-cur-details-0"></div>            
+            <div class="weather-hourly-summary" id="weather-cur-sum-0"></div>
+        </div>
+
+        <div class="weather-hourly flex-column" id="weather-hourly-1">
+            <div class="weather-hourly-time" id="weather-cur-time-1"></div>
+            <div class="weather-hourly-details" id="weather-cur-details-1"></div>
+            <div class="weather-hourly-summary" id="weather-cur-sum-1"></div>
+        </div>
+
+        <div class="weather-hourly flex-column" id="weather-hourly-2">
+            <div class="weather-hourly-time" id="weather-cur-time-2"></div>
+            <div class="weather-hourly-details" id="weather-cur-details-2"></div>
+            <div class="weather-hourly-summary" id="weather-cur-sum-2"></div>
+        </div>
+
+        <div class="weather-hourly flex-column" id="weather-hourly-3">
+            <div class="weather-hourly-time" id="weather-cur-time-3"></div>
+            <div class="weather-hourly-details" id="weather-cur-details-3"></div>
+            <div class="weather-hourly-summary" id="weather-cur-sum-3"></div>
+        </div>
+
+        <div class="weather-hourly flex-column" id="weather-hourly-4">
+            <div class="weather-hourly-time" id="weather-cur-time-4"></div>
+            <div class="weather-hourly-details" id="weather-cur-details-4"></div>
+            <div class="weather-hourly-summary" id="weather-cur-sum-4"></div>
+        </div>
+
+        <div class="weather-hourly flex-column" id="weather-hourly-5">
+            <div class="weather-hourly-time" id="weather-cur-time-5"></div>
+            <div class="weather-hourly-details" id="weather-cur-details-5"></div>
+            <div class="weather-hourly-summary" id="weather-cur-sum-5"></div>
+        </div>
+    </div>
+</div>
+
+<div class="spacer-current-next"></div>
+
+<!-- This row contains the next day weather forecast -->
+<div class="flex-row flex-justify-center" id="weather-block-daily" style="display: none;">
+
+    <div class="weather-daily flex-column" id="weather-daily-0">
+        <div class="weather-daily-date" id="weather-next-date-0"></div>
+        <div class="weather-daily-details" id="weather-next-details-0"></div>
+        <div class="weather-daily-summary" id="weather-next-sum-0"></div>
+        <div class="weather-daily-suntimes">
+            <span class="fa-stack"><i class="fas fa-sun fa-stack-1x"></i><i style="transform: translate(45%,-45%) scale(0.5,0.5) rotate(45deg);" class="fas fa-arrow-up fa-stack-1x"></i></span><span id="weather-next-sunrise-0"></span>
+            <span class="fa-stack"><i class="fas fa-sun fa-stack-1x"></i><i style="transform: translate(45%, 45%) scale(0.5,0.5) rotate(135deg);" class="fas fa-arrow-up fa-stack-1x"></i></span><span id="weather-next-sunset-0"></span>
+        </div>
+    </div>
+
+    <div class="weather-daily flex-column" id="weather-daily-1">
+        <div class="weather-daily-date" id="weather-next-date-1"></div>
+        <div class="weather-daily-details" id="weather-next-details-1"></div>
+        <div class="weather-daily-summary" id="weather-next-sum-1"></div>
+        <div class="weather-daily-suntimes">
+            <span class="fa-stack"><i class="fas fa-sun fa-stack-1x"></i><i style="transform: translate(45%,-45%) scale(0.5,0.5) rotate(45deg);" class="fas fa-arrow-up fa-stack-1x"></i></span><span id="weather-next-sunrise-1"></span>
+            <span class="fa-stack"><i class="fas fa-sun fa-stack-1x"></i><i style="transform: translate(45%, 45%) scale(0.5,0.5) rotate(135deg);" class="fas fa-arrow-up fa-stack-1x"></i></span><span id="weather-next-sunset-1"></span>
+        </div>
+    </div>
+
+    <div class="weather-daily flex-column" id="weather-daily-2">
+        <div class="weather-daily-date" id="weather-next-date-2"></div>
+        <div class="weather-daily-details" id="weather-next-details-2"></div>
+        <div class="weather-daily-summary" id="weather-next-sum-2"></div>
+        <div class="weather-daily-suntimes">
+            <span class="fa-stack"><i class="fas fa-sun fa-stack-1x"></i><i style="transform: translate(45%,-45%) scale(0.5,0.5) rotate(45deg);" class="fas fa-arrow-up fa-stack-1x"></i></span><span id="weather-next-sunrise-2"></span>
+            <span class="fa-stack"><i class="fas fa-sun fa-stack-1x"></i><i style="transform: translate(45%, 45%) scale(0.5,0.5) rotate(135deg);" class="fas fa-arrow-up fa-stack-1x"></i></span><span id="weather-next-sunset-2"></span>
+        </div>        
+    </div>
+
+    <div class="weather-daily flex-column" id="weather-daily-3">
+        <div class="weather-daily-date" id="weather-next-date-3"></div>
+        <div class="weather-daily-details" id="weather-next-details-3"></div>
+        <div class="weather-daily-summary" id="weather-next-sum-3"></div>
+        <div class="weather-daily-suntimes">
+            <span class="fa-stack"><i class="fas fa-sun fa-stack-1x"></i><i style="transform: translate(45%,-45%) scale(0.5,0.5) rotate(45deg);" class="fas fa-arrow-up fa-stack-1x"></i></span><span style="margin-left: -2;" id="weather-next-sunrise-3"></span>
+            <span class="fa-stack"><i class="fas fa-sun fa-stack-1x"></i><i style="transform: translate(45%, 45%) scale(0.5,0.5) rotate(135deg);" class="fas fa-arrow-up fa-stack-1x"></i></span><span id="weather-next-sunset-3"></span>
+        </div>
+    </div>
+</div>
+
+<div class="spacer-filldown"></div>
+
+<!-- This row contains the settings button, and the status message/alert message -->
+<div class="flex-row bottom-row">
+    <div class="flex-row" id="bottom-row-buttons">
+        <button type="button" class="button" id="button_settings"><i class="fas fa-cogs fa-2x"></i></button>
+    </div>
+    <div class="flex-column statusmessage-normal" id="statusmessage">Weather has never been updated</div>
+</div>
+
+</div>
+
+
+<!-- 
+   This is the settings window 
+   -->
+<div class="container flex-justify-between" style="display: none;" id="settingswindow">
+<div class="flex-column">
+    <div class="flex-row flex-justify-center" id="settings-title">Settings</div>
+
+    <div class="flex-row flex-justify-center label-control">
+        <label for="settings-tzunit" class="settings-label">Local timezone:</label>
+        <select class="settings-tz-select" style="width: 20%;" id="settings-tzunit"><option>America/Los_Angeles</option></select>
+    </div>
+    
+    <div class="flex-row flex-justify-center label-control">
+        <label for="settings-units" class="settings-label">Imperial or metric units:</label>
+        <select class="settings-control" id="settings-units"><option value="M">Metric</option><option value="I">Imperial</option></select>
+    </div>
+
+    <div class="flex-row flex-justify-center label-control">
+        <label for="settings-locale" class="settings-label">Date/time locale:</label>
+        <select class="settings-control" id="settings-locale"><option value="en-US">en-US</option></select>
+    </div>
+
+    <div class="flex-row flex-justify-center label-control">
+        <label for="settings-forecat-url" class="settings-label">Forecast URL:</label>
+        <input type="text" class="settings-control" id="settings-url-forecast" placeholder="https://..." />
+    </div>
+
+    <div class="flex-row flex-justify-center label-control">
+        <label for="settings-device-name" class="settings-label">Air quality URL:</label>
+        <input type="text" class="settings-control" id="settings-url-waqi" />
+    </div>
+    
+    
+    <div class="flex-row flex-justify-center" id="settings-title-tz">Timezone settings</div>
+    
+    <div class="flex-row flex-justify-center settings-timezone-group">
+        <div class="flex-column settings-tz-column">
+            <div class="flex-row label-control">
+                <label for="settings-tzunit0" class="settings-label">Timezone:</label>
+                <select class="settings-tz-select" placeholder="Timezone #1" id="settings-tzunit0"></select>
+            </div>
+            <div class="flex-row label-control">
+                <label for="settings-tzunit1" class="settings-label">Timezone:</label>
+                <select class="settings-tz-select" placeholder="Timezone #2" id="settings-tzunit1"></select>
+            </div>
+        </div>
+        
+        <div class="flex-column" style="width: 20px;"></div>
+        
+        <div class="flex-column settings-tz-column">
+            <div class="flex-row label-control">
+                <label for="settings-tzunit2" class="settings-label">Timezone:</label>
+                <select class="settings-tz-select" placeholder="Timezone #3" id="settings-tzunit2"></select>
+            </div>
+            <div class="flex-row label-control">
+                <label for="settings-tzunit3" class="settings-label">Timezone:</label>
+                <select class="settings-tz-select" placeholder="Timezone #4" id="settings-tzunit3"></select>
+            </div>
+        </div>
+    </div>
+
+    <div class="flex-row flex-justify-center settings-button-group">
+        <button id="settings-apply">Apply</button>
+        <button id="settings-cancel">Cancel</button>
+        <button id="settings-update">App updater</button>
+    </div>
+
+    <div class="spacer-filldown"></div>
+    
+    <div class="flex-row" id="settings-bottom-row"><span id="settingsfacestatus"><i class="fas fa-eye-slash"></i></span><span id="settingsmessage"></span></div>
+    
+</div>
+</div>
+
+<!-- Dialog showing the daily weather forecast -->
+<div id="daily-details-dialog" class="daily-modal">
+
+  <!-- Modal content -->
+  <div class="daily-modal-content flex-column">
+    <div class="daily-modal-date"></div>
+    <div class="daily-modal-close">&times;</div>
+    <div class="daily-modal-details"></div>
+    <div class="daily-modal-summary"></div>
+    <div class="daily-modal-suntimes">
+        <span class="fa-stack"><i class="fas fa-sun fa-stack-1x"></i><i style="transform: translate(45%,-45%) scale(0.5,0.5) rotate(45deg);" class="fas fa-arrow-up fa-stack-1x"></i></span><span style="margin-left: -2;" id="daily-modal-sunrise"></span>
+        <span class="fa-stack"><i class="fas fa-sun fa-stack-1x"></i><i style="transform: translate(45%, 45%) scale(0.5,0.5) rotate(135deg);" class="fas fa-arrow-up fa-stack-1x"></i></span><span id="daily-modal-sunset"></span>
+    </div>
+  </div>
+</div>
+
+<script type="text/javascript" src="cordova.js"></script>
+<script type="text/javascript" src="js/ext/jquery.min.js"></script>
+<script type="text/javascript" src="js/ext/selectize.min.js"></script>
+<!--    <script type="text/javascript" src="/js/moment-with-locales.min.js"></script>-->
+<script type="text/javascript" src="js/ext/moment.min.js"></script>
+<script type="text/javascript" src="js/ext/moment-timezone.js"></script>
+<script type="text/javascript" src="js/private.js"></script>
+<script type="text/javascript" src="js/forecast.js"></script>
+<script type="text/javascript" src="js/appupdater.js"></script> 
+<script type="text/javascript" src="js/clock.js"></script>
+<script type="text/javascript" defer src="js/ext/fontawesome-trimmed.js"></script>
+
+</body>
+</html>

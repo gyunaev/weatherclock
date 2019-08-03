@@ -1,0 +1,39 @@
+{
+  "name": "com.ulduzsoft.weatherclock",
+  "displayName": "Weather Clock",
+  "version": "1.0.0",
+  "description": "A full-screen application showing current weather, forecast, and time in different timezones",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "ecosystem:cordova"
+  ],
+  "author": "Apache Cordova Team",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "cordova-android": "^8.0.0",
+    "cordova-plugin-add-swift-support": "^2.0.1",
+    "cordova-plugin-app-update": "^2.0.2",
+    "cordova-plugin-appversion": "^1.0.0",
+    "cordova-plugin-autostart": "^2.3.0",
+    "cordova-plugin-brightness": "^0.2.0",
+    "cordova-plugin-zeroconf": "^1.4.0"
+  },
+  "devDependencies": {
+    "cordova-plugin-whitelist": "^1.3.4"
+  },
+  "cordova": {
+    "plugins": {
+      "cordova-plugin-whitelist": {},
+      "cordova-plugin-zeroconf": {},
+      "cordova-plugin-brightness": {},
+      "cordova-plugin-autostart": {},
+      "cordova-plugin-app-update": {}
+    },
+    "platforms": [
+      "android"
+    ]
+  }
+}
