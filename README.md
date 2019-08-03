@@ -1,6 +1,8 @@
-# WeatherClock - a full-screen customizable HTML/CSS/JS-based screen showing current weather, forecast, and time (with optional timezones)
+# WeatherClock - a full-screen application to run on the Android tablets in your home
 
-WeatherClock is a full-screen home information screen intended to run on Android tablets installed at home. It provides the following information:
+![Screenshot](https://github.com/gyunaev/weatherclock/raw/master/screenshots/screenshot2.png "Screenshot")
+
+WeatherClock is a full-screen home information screen intended to run on Android tablets installed at home. It is supposed to run 24/7 and provides the following information:
 
 - Current time and date;
 - Current temperature, weather conditions, humidity, pressure, and wind speed;
@@ -21,10 +23,12 @@ WeatherClock is licensed under GNU GPL version 3, and is written by George Yunae
 - Supports automatic application updates from your server;
 - Supports Imperial and Metric units;
 - Allows easy integration of the rest of your home automation system via HTML modification;
+- Dims the screen when unused, restores full brightness on touch;
+- Background automatically changes depending on current weather conditions;
 
 ## Usage
 
-**Before installing the application you must create accounts and obtain development tokens from darksky.net and waqi.info.**
+**Before installing the application you must create accounts and obtain development tokens from darksky.net and waqi.info**
 
 The application uses free tier weather forecast from DarkSky.net and free air quailty index from waqi.info. To get access to this data, you need:
 
@@ -48,27 +52,46 @@ The application uses free tier weather forecast from DarkSky.net and free air qu
 
 - Launch the application, click on Settings button and put those URLs in the appropriate fields.
 
-
 ## Building your own version
 
 ### Install Apache Cordova
 
 Please see https://cordova.apache.org/#getstarted
 
+You will also need to install Android SDK and Gradle.
 
-### Customization
+### Add Android platform
+
+`cordova platforms add android`
+
+### Build for Android
+
+`cordova build android`
+
+### Install the APK
+
+Connect your Android device with USB debugging enabled, and run:
+
+`cordova run android`
+
+Then go to Settings (cogs button at the bottom left), and enter the URLs for forecast and air quality you obtained before. Press Save.
+
+## Customization
 
 You can customize a few things through www/js/private.js file (not included):
 
-- define *var forecastDefaultURL = "<your-forecast-url>";* which would provide default forecast URL;
+- define `var forecastDefaultURL = "<your-forecast-url>";` which would provide default forecast URL;
 
-- define *var airQualityDetaultURL = "<your-air-quality-url>";* which would provide default air quality URL;
+- define `var airQualityDetaultURL = "<your-air-quality-url>";` which would provide default air quality URL;
 
-- define *function privateInit(){}* which will be called during the device initialization - here you can add more functions, customize the UI etc.
+- define `function privateInit(){ }` which will be called during the device initialization - here you can add more functions, customize the UI etc.
 
+## Screenshots
 
-### Install Apache Cordova
-
+![Screenshot](https://github.com/gyunaev/weatherclock/raw/master/screenshots/screenshot1.png "UI without timezones")
+![Screenshot](https://github.com/gyunaev/weatherclock/raw/master/screenshots/screenshot2.png "UI with timezones")
+![Screenshot](https://github.com/gyunaev/weatherclock/raw/master/screenshots/screenshot3.png "Weather details")
+![Screenshot](https://github.com/gyunaev/weatherclock/raw/master/screenshots/screenshot4.png "During the day")
 
 ## Contacts
 
