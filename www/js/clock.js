@@ -12,7 +12,12 @@ var timeoutTimerHandle = null;
 // Stored weather forecast
 var storedForecast = null;
 
+// Last seen temperature (to track changes)
 var lastTemperature = null;
+
+// Start URL (for back button)
+var startURL = null;
+
 
 //
 // Brightness configuration
@@ -435,7 +440,7 @@ function setup()
     });
 
     // Back button
-    document.addEventListener( "backbutton", function() { window.location = "local/index.html"; }, true );
+    document.addEventListener( "backbutton", function() { window.location = startURL; }, true );
     
     // Click on weather triggers the DNSSD announcement
     $("#nowtime").click( function() {
@@ -505,6 +510,8 @@ function setup()
 // and wait for the proper function.
 $(document).ready(function() {
 
+    startURL = document.URL;
+    
     if ( document.URL.indexOf("http://") === 0 || document.URL.indexOf("https://") === 0 )
         setup(); // This is browser
     else
