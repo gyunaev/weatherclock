@@ -268,7 +268,7 @@ function updateUI( forecast )
             $("#weather-next-sunset-" + i).text( moment.unix( fdata.sunsetTime ).tz( config.unitTimezone ).format( 'LT', config.timeLocale ) );
             
             // Remove all weather-daily-temp- classes
-            for ( let c in [ "weather-daily-temp-cold", "weather-daily-temp-awfulhot", "weather-daily-temp-veryhot", "weather-daily-temp-hot", "weather-daily-rain" ] )
+            for ( let c of [ "weather-daily-temp-cold", "weather-daily-temp-awfulhot", "weather-daily-temp-veryhot", "weather-daily-temp-hot", "weather-daily-rain" ] )
                 $("#weather-daily-" + i).removeClass ( c );
 
             // And add the one depending on temperature
