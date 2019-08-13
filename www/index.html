@@ -12,10 +12,17 @@
 </head>
 <body class="">
 
+<!--
+  This is startup screen
+  -->
+<div class="container flex-justify-center" id="splashscreen">  
+    <div class="startup-message text-align-center">WeatherClock is loading</div>
+</div>
+
 <!-- 
    This is the main window 
    -->
-<div class="container flex-justify-between" id="mainwindow">
+<div class="container flex-justify-between" id="mainwindow" style="display: none;">
 
 <!-- The row containing the top header: time/date on the left, weather on the right, timezones down -->
 <div class="flex-row flex-justify-between">
@@ -23,7 +30,7 @@
     <!-- Left column: time, date, two timezones -->
     <div class="flex-column">
         <div id="nowtime"></div>
-        <div id="nowdate"></h2></div>
+        <div id="nowdate"></div>
         <div class="timezone text-align-left" id="timezone_0"></div>
         <div class="timezone text-align-left" id="timezone_2"></div>
     </div>
@@ -31,7 +38,7 @@
     <!-- Right column: temp, weatherdesc, two timezones -->
     <div class="flex-column">
         <div id="nowtemp"></div>
-        <div id="nowweather"></h21></div>
+        <div id="nowweather"></div>
         <div class="timezone text-align-right" id="timezone_1"></div>
         <div class="timezone text-align-right" id="timezone_3"></div>
     </div>
@@ -214,7 +221,7 @@
 
     <div class="spacer-filldown"></div>
     
-    <div class="flex-row" id="settings-bottom-row"><span id="settingsfacestatus"><i class="fas fa-eye-slash"></i></span><span id="settingsmessage"></span></div>
+    <div class="flex-row" id="settings-bottom-row"><span id="settingsmessage"></span></div>
     
 </div>
 </div>
@@ -245,6 +252,7 @@
 <script type="text/javascript" src="js/forecast.js"></script>
 <script type="text/javascript" src="js/appupdater.js"></script> 
 <script type="text/javascript" src="js/clock.js"></script>
+<script type="text/javascript" src="js/version.js"></script>
 <script type="text/javascript" defer src="js/ext/fontawesome-trimmed.js"></script>
 
 </body>

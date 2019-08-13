@@ -3,9 +3,6 @@
 // Configuration
 var config = null;
 
-// Temperature clicker count (which triggers forecast update)
-var tempClickCounter = 0;
-
 // Various timeout handlers
 var timeoutTimerHandle = null;
 
@@ -157,6 +154,13 @@ function updateUI( forecast )
     // If settings UI is visible, do not update the UI
     if ( $("#settingswindow").is(":visible") )
         return;
+    
+    // If splash screen is visible, hide it and show main window
+    if ( $("#splashscreen").is(":visible" ) )
+    {
+        $("#splashscreen").hide();
+        $("#mainwindow").show();
+    }
     
     // Update local time and date
     let now = moment.tz( config.unitTimezone );
@@ -383,7 +387,9 @@ function showSettings()
     for ( let l = 0; l < config.timezones.length; l++ )
         $("#settings-tzunit" + l ).selectize()[0].selectize.addItem( config.timezones[l] );
 
-    $("#settingsmessage").text( forecastprovider.debugStatus() );
+    $("#settingsmessage").text( "Version " + applicationVersion 
+                                + ", built: " + moment.unix( applicationBuiltEpoch ).format( 'LLLL')
+                                + ", " + forecastprovider.debugStatus()  );    
     
     $("body").removeClass();
     $("#mainwindow").hide();
@@ -401,10 +407,16 @@ function restoreBrightness()
     }, brightnessKeepTime  );
     
     cordova.plugins.brightness.setBrightness( 1, function(){}, function(){} );
+    
+    // Activate the immersive mode again
+    AndroidFullScreen.immersiveMode( function(){}, function(){} );    
 }
 
 function setup()
 {   
+    // Show the version and build date
+    $(".startup-message").text( "Version " + applicationVersion + ", built: " + moment.unix( applicationBuiltEpoch ).format( 'LLLL') );
+    
     // Acquire power management lock
     if ( typeof window.powermanagement != 'undefined' )
         window.powermanagement.acquire();
@@ -442,19 +454,6 @@ function setup()
     // Back button
     document.addEventListener( "backbutton", function() { window.location = startURL; }, true );
     
-    // Click on weather triggers the DNSSD announcement
-    $("#nowtime").click( function() {
-        
-        if ( timeoutTimerHandle == null )
-            timeoutTimerHandle = setTimeout( function() { timeoutTimerHandle = null; tempClickCounter = 0; }, 1000 );
-        
-        if ( ++tempClickCounter == 4 )
-        {
-            console.log( "Forecast update: manual request" );
-            forecastprovider.updateFromInternet();
-        }
-    });    
-    
     // Hide the red background on click on error message
     $("#statusmessage").click( function() {
 
@@ -463,6 +462,11 @@ function setup()
             $("#statusmessage").removeClass("statusmessage-error").addClass( "statusmessage-normal" );
             $("#statusmessage").text( forecastprovider.currentStatus() );
         }
+        else
+        {
+            console.log( "Forecast update: manual request" );
+            forecastprovider.updateFromInternet();
+        }            
     });
     
     // Handle click on weather daily forecast
@@ -497,6 +501,9 @@ function setup()
         
         // Restore the brightness
         restoreBrightness();
+        
+        // Activate fullscreen
+        AndroidFullScreen.immersiveMode( function(){}, function(){} );
     
         // Any click on body restores the brightness back
         $("body").click( restoreBrightness );

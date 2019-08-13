@@ -3,39 +3,43 @@
 
 var appupdater = {
  
-    // Private data storage
-    lastcheckresult : "not started",
-    lastchecktime : null,
-
     checkForUpdates : function()
     {
-        if ( typeof appUpdaterIndexURL === 'undefined' )
+        if ( typeof appUpdaterApkURL === 'undefined' )
             return;
-            
-        let appUpdate = cordova.require('cordova-plugin-app-update.AppUpdate');
+        
+        cordova.file.cacheDirectory
 
-        if ( appUpdate != null )
+        window.requestFileSystem( LocalFileSystem.TEMPORARY, 0, function(fileSystem) 
         {
-            appUpdate.checkAppUpdate( function onSuccess() {
+            fileSystem.root.getFile( 
+                'weatherclock.apk',
+                { create: true, exclusive: false }, 
+                
+                function(fileEntry) {
+                    var localPath = fileEntry.fullPath, fileTransfer = new FileTransfer();
+                    
+                    fileTransfer.download( appUpdaterApkURL, localPath, function(entry) {
+                        window.plugins.webintent.startActivity( 
+                            { 
+                                action: window.plugins.webintent.ACTION_VIEW,
+                                url: 'file://' + entry.fullPath,
+                                type: 'application/vnd.android.package-archive'
+                            },
+                            function(){},
+                            function(e){
+                                alert('Error launching app update');
+                            }
+                    );                              
 
-                lastcheckresult = "success";
-                lastchecktime = moment();                
-
-            }, function onFail() {
-
-                lastcheckresult = "error";
-                lastchecktime = moment();
-            },
-            
-            
-            appUpdaterIndexURL,
-            
-            {
-                'skipPromptDialog' : true,
-                'skipProgressDialog' : true
-            } );
-        }
-        else
-            this.lastcheckresult = "disabled";
+                    }, function (error) {
+                        $("#settingsmessage").text( "Error downloading APK from " + appUpdaterApkURL );
+                    });
+            }, function(evt){
+                $("#settingsmessage").text( "Error downloading apk" );
+            });
+        }, function(evt){
+            $("#settingsmessage").text( "Error preparing to download apk" );
+        });
     }
 };
