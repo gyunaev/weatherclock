@@ -29,6 +29,19 @@ var appupdater = {
                         fileEntry.createWriter(function(fileWriter) {
                             fileWriter.onwriteend = function(e) {
                                 $("#settingsmessage").text( "APK file successfully downloaded" );
+                                
+                                window.plugins.webintent.startActivity({
+                                            action: window.plugins.webintent.ACTION_VIEW,
+                                            url: fileEntry.toURL(),
+                                            type: 'application/vnd.android.package-archive'
+                                        },
+                                        function () {
+                                            $("#settingsmessage").text( "APK installed successfully");
+                                        },
+                                        function () {
+                                            $("#settingsmessage").text( "Failed to install new APK");
+                                        }
+                                    );                                
                             };
 
                             fileWriter.onerror = function(e) {

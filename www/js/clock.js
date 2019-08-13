@@ -414,9 +414,6 @@ function restoreBrightness()
 
 function setup()
 {   
-    // Show the version and build date
-    $(".startup-message").text( "Version " + applicationVersion + ", built: " + moment.unix( applicationBuiltEpoch ).format( 'LLLL') );
-    
     // Acquire power management lock
     if ( typeof window.powermanagement != 'undefined' )
         window.powermanagement.acquire();
@@ -522,5 +519,11 @@ $(document).ready(function() {
     if ( document.URL.indexOf("http://") === 0 || document.URL.indexOf("https://") === 0 )
         setup(); // This is browser
     else
+    {
+        // This is Cordova. Show the version and build date
+        $(".startup-message").text( "Version " + applicationVersion + ", built: " + moment.unix( applicationBuiltEpoch ).format( 'LLLL') );
+        
+        // And wait until everything is loaded
         document.addEventListener("deviceready", setup, false);
+    }
 });
