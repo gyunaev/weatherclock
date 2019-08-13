@@ -27,6 +27,10 @@ body {
     font-size: 500%;
 }
 
+.startup-version {
+    font-size: 250%;
+}
+
 .body-bg-clear-day {
     background-image: url( '../images/weather_clear_day.jpg' );
 }
