@@ -200,7 +200,7 @@ function updateUI( forecast )
         let curicon = forecastprovider.convertIcon( forecast.currently.icon );
         let outtemp = "";
 
-        if ( typeof forecast.airquality != "undefined" )
+        if ( forecast.airquality !== undefined && forecast.airquality.aqi !== undefined )
             outtemp += forecast.airquality.aqi + "<span class='smallfont'>ppm2</span> ";
         
         outtemp += '<i class="' + curicon + '"></i> ' + convertUnit( forecast.currently.apparentTemperature, "temperature", 'I' )
