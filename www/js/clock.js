@@ -200,7 +200,7 @@ function updateUI( forecast )
         let curicon = forecastprovider.convertIcon( forecast.currently.icon );
         let outtemp = "";
 
-        if ( forecast.airquality !== undefined && forecast.airquality.aqi !== undefined )
+        if ( forecast.airquality !== undefined && typeof forecast.airquality.aqi === "number" )
             outtemp += forecast.airquality.aqi + "<span class='smallfont'>ppm2</span> ";
         
         outtemp += '<i class="' + curicon + '"></i> ' + convertUnit( forecast.currently.apparentTemperature, "temperature", 'I' )
@@ -431,15 +431,6 @@ function setup()
     // Setup settings UI part
     setupSettings();
 
-    // Setup the forecast updater
-    forecastprovider.intialize( function updated( error, forecast ) {
-        
-        if ( error != null )
-            showError ( error );
-        else
-            updateUI( forecast );
-    });
-    
     // Update the main UI every 500ms
     setInterval( updateUI, 500 );
 
@@ -486,6 +477,15 @@ function setup()
     // If private.js has privateInit function, call it
     if ( typeof privateInit === 'function' )
         privateInit();
+
+    // Setup the forecast updater
+    forecastprovider.intialize( function updated( error, forecast ) {
+        
+        if ( error != null )
+            showError ( error );
+        else
+            updateUI( forecast );
+    });
     
     // Extra functionality based on Cordova
     if ( typeof cordova != 'undefined' )
