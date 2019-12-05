@@ -509,13 +509,12 @@ function setup()
     // Handle click on weather hourly forecast
     $(".weather-hourly").click( function() {
         
-        console.log("hourly");
         dailyForecastHourlySpacing++;
         
         if ( dailyForecastHourlySpacing > 4 )
             dailyForecastHourlySpacing = 1;
         
-        updateUI( forecastprovider.current() );
+        updateUI( storedForecast );
     });
     
     // Closing the modal dialog when clicked outside or close button
