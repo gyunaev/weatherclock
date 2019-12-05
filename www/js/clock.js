@@ -23,6 +23,9 @@ var errorMessages = [];
 // An original statusbar message (shown when no errors)
 var originalStatusMessage = "";
 
+// Hourly spacing for daily forecast
+var dailyForecastHourlySpacing = 2;
+
 
 //
 // Brightness configuration
@@ -237,7 +240,7 @@ function updateUI( forecast )
         $("#weather-cur-summary").text( forecast.hourly.summary );
         
         // Hourly details
-        let hourstep = Math.min( 2, Math.floor( (forecast.hourly.data.length - 1) / 2 ) );
+        let hourstep = Math.min( dailyForecastHourlySpacing, Math.floor( (forecast.hourly.data.length - 1) ) );
         let today_sunset = moment.unix( forecast.daily.data[0].sunsetTime ).tz( config.unitTimezone ).hour();
         let today_sunrise = moment.unix( forecast.daily.data[0].sunriseTime ).tz( config.unitTimezone ).hour();
         
@@ -313,25 +316,19 @@ function updateUI( forecast )
 // This clears errors of a specific type
 function clearError( type )
 {
-    console.log( "clear error %s %s", type, JSON.stringify( errorMessages  ) );
-    
     for ( let i in errorMessages )
     {
-        console.log( "checking" + errorMessages[i].type );
         if ( errorMessages[i].type == type )
         {
-            console.log( "found " + errorMessages[i].type );
             errorMessages.splice( i, 1 );
             break;
         }
     }
-    console.log( "clear error after ", JSON.stringify( errorMessages  ) );
 }
 
 // Show an error message 
 function updateStatusBar()
 {
-    console.log( errorMessages );
     if ( errorMessages.length > 0 )
     {
         if ( !$("#statusmessage").hasClass("statusmessage-error") )
@@ -507,6 +504,18 @@ function setup()
         
         showDetailedDialog( $(this).closest( ".weather-daily" ).attr('id') );
         
+    });
+
+    // Handle click on weather hourly forecast
+    $(".weather-hourly").click( function() {
+        
+        console.log("hourly");
+        dailyForecastHourlySpacing++;
+        
+        if ( dailyForecastHourlySpacing > 4 )
+            dailyForecastHourlySpacing = 1;
+        
+        updateUI( forecastprovider.current() );
     });
     
     // Closing the modal dialog when clicked outside or close button
