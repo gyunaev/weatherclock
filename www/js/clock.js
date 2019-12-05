@@ -15,6 +15,14 @@ var lastTemperature = null;
 // Start URL (for back button)
 var startURL = null;
 
+// Error stack with messages received. The new messages come on top.
+// Each message is an object with type and msg properties.
+// Errors of the same type replace each other, meaning they don't accumulate.
+var errorMessages = [];
+
+// An original statusbar message (shown when no errors)
+var originalStatusMessage = "";
+
 
 //
 // Brightness configuration
@@ -68,7 +76,7 @@ function saveSetting( name, object )
     }
     catch ( err )
     {
-        showError( "Failed to save new settings: local storage not available" );
+        showError( "ls", "Failed to save new settings: local storage not available" );
     }
 }
 
@@ -294,23 +302,59 @@ function updateUI( forecast )
         $("#weather-block-hourly").show();
     }
     
-    // Only update the weather status if we don't show errors
-    if ( !$("#statusmessage").hasClass("statusmessage-error") )
-    {
-        let q = forecastprovider.currentStatus();
-        $("#statusmessage").text( forecastprovider.currentStatus() );
-    }
+    // Set the new status bar message
+    originalStatusMessage = forecastprovider.currentStatus();
+    updateStatusBar();
 
     if ( $("#mainwindow").hasClass("d-none") )
         $("#mainwindow").removeClass("d-none");
 }
 
-function showError( msg )
+// This clears errors of a specific type
+function clearError( type )
 {
-    if ( !$("#statusmessage").hasClass("statusmessage-error") )
-        $("#statusmessage").addClass("statusmessage-error").removeClass( "statusmessage-normal" );
+    console.log( "clear error %s %s", type, JSON.stringify( errorMessages  ) );
     
-    $("#statusmessage").html( msg + "  &times;");
+    for ( let i in errorMessages )
+    {
+        console.log( "checking" + errorMessages[i].type );
+        if ( errorMessages[i].type == type )
+        {
+            console.log( "found " + errorMessages[i].type );
+            errorMessages.splice( i, 1 );
+            break;
+        }
+    }
+    console.log( "clear error after ", JSON.stringify( errorMessages  ) );
+}
+
+// Show an error message 
+function updateStatusBar()
+{
+    console.log( errorMessages );
+    if ( errorMessages.length > 0 )
+    {
+        if ( !$("#statusmessage").hasClass("statusmessage-error") )
+            $("#statusmessage").addClass("statusmessage-error").removeClass( "statusmessage-normal" );
+    
+        $("#statusmessage").html( "" + errorMessages[0].msg + "  &times;");
+    }
+    else
+    {
+        if ( $("#statusmessage").hasClass("statusmessage-error") )
+            $("#statusmessage").removeClass("statusmessage-error").addClass( "statusmessage-normal" );
+        
+        $("#statusmessage").html( originalStatusMessage );
+    }        
+}
+
+function showError( type, msg )
+{
+    // If error of this type exist, we remove it to make sure it goes on top
+    clearError( type );
+    
+    errorMessages.unshift( { type : type, msg : msg } );
+    updateStatusBar();
 }
 
 function restoreMain()
@@ -444,11 +488,12 @@ function setup()
     
     // Hide the red background on click on error message
     $("#statusmessage").click( function() {
-
-        if ( $("#statusmessage").hasClass("statusmessage-error") )
+        
+        if ( errorMessages.length > 0 )
         {
-            $("#statusmessage").removeClass("statusmessage-error").addClass( "statusmessage-normal" );
-            $("#statusmessage").text( forecastprovider.currentStatus() );
+            // Click on error message removes the first message in the queue
+            errorMessages.shift();
+            updateStatusBar();
         }
         else
         {
@@ -477,14 +522,19 @@ function setup()
     // If private.js has privateInit function, call it
     if ( typeof privateInit === 'function' )
         privateInit();
-
+    
     // Setup the forecast updater
     forecastprovider.intialize( function updated( error, forecast ) {
         
         if ( error != null )
-            showError ( error );
+        {
+            showError ( "wfc", error );
+        }
         else
+        {
+            clearError( "wfc ");
             updateUI( forecast );
+        }
     });
     
     // Extra functionality based on Cordova
