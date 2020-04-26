@@ -127,7 +127,6 @@ function showDetailedDialog( blockid )
     let id = 1 + m[1];
     let fdata = forecastProvider.status().combined.daily[ Number( m[1] ) ];
     
-    console.log( fdata );
     console.log( forecastProvider.status().combined.hourly );
 
     let wtime = moment( fdata.startTime );
@@ -331,7 +330,7 @@ function updateUI( redrawForecast )
         for ( let i = 0; i < Math.min( forecast.combined.daily.length, 6 ); i++ )
         {
             let fdata = forecast.combined.daily[ i ];
-            console.log( fdata );
+
             let wtime = moment( fdata.startTime );
             $("#weather-next-date-" + i ).text( wtime.format( "ddd MMM DD", config.timeLocale ) );
             $("#weather-next-sum-" + i ).text( fdata.summary );
@@ -594,7 +593,7 @@ function setup()
                     applySettings( config );
                     
                     // And fully reload
-                    window.location = config.startURL;
+                    window.location.reload();
                 } )
                 .fail( function( err ) {
                     
@@ -660,7 +659,7 @@ function setup()
 // and wait for the proper function.
 $(document).ready(function() {
 
-    config.startURL = document.URL;
+    config.startURL = window.location.href;
     
     if ( document.URL.indexOf("http://") === 0 || document.URL.indexOf("https://") === 0 )
         setup(); // This is browser

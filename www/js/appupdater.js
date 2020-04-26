@@ -3,6 +3,14 @@
 
 var appupdater = {
  
+    setMessage : function( msg, autoClose = false )
+    {
+        $("#app-download-info").text( msg );
+        
+        if ( autoClose )
+            setTimeout( ()=>{ $("#app-download-dialog").hide(); }, 2500 );
+    },
+    
     checkForUpdates : function()
     {
         if ( typeof config.appUpdaterApkURL === 'undefined' )
@@ -12,9 +20,24 @@ var appupdater = {
 
         // Make sure you add the domain name to the Content-Security-Policy <meta> element.
         oReq.open( "GET", config.appUpdaterApkURL, true);
+
+        appupdater.setMessage( "Preparing to download the APK file" );
+        $("#app-download-progress").css('width', '2%');
+        $("#app-download-dialog").show();
         
         // Define how you want the XHR data to come back
         oReq.responseType = "blob";
+        
+        oReq.onprogress = function(event) {
+            
+            if (event.lengthComputable) 
+            {  
+                // evt.loaded the bytes the browser received
+                // evt.total the total bytes set by the header
+                $("#app-download-progress").css('width', Math.max( 2, (event.loaded / event.total) * 100 ) + '%');
+            } 
+        }; 
+    
         oReq.onload = function (oEvent) {
             var blob = oReq.response; // Note: not oReq.responseText
     
@@ -22,13 +45,14 @@ var appupdater = {
             {
                 window.resolveLocalFileSystemURL( cordova.file.externalRootDirectory, function (dirEntry) {
 
-                    $("#settingsmessage").text( "Downloading the APK file..." );
+                    appupdater.setMessage( "APK file successfully downloaded" );
                     
                     dirEntry.getFile("Download/weatherclock.apk", {create: true, exclusive: false}, function(fileEntry)
                     {
                         fileEntry.createWriter(function(fileWriter) {
                             fileWriter.onwriteend = function(e) {
-                                $("#settingsmessage").text( "APK file successfully downloaded" );
+                                
+                                appupdater.setMessage( "Runnign the installer", true );
                                 
                                 window.plugins.webintent.startActivity({
                                             action: window.plugins.webintent.ACTION_VIEW,
@@ -45,26 +69,26 @@ var appupdater = {
                             };
 
                             fileWriter.onerror = function(e) {
-                                $("#settingsmessage").text( "Failed to save the APK: " + e.toString());
+                                appupdater.setMessage( "Failed to save the APK: " + e.toString(), true );
                             };
 
                             fileWriter.write(blob);
                         },
                         function error(e) { 
-                            $("#settingsmessage").text( "Failed to create a writer" );
+                            appupdater.setMessage( "Failed to create a writer", true );
                         });
                     },
                     function error(e) { 
-                        $("#settingsmessage").text( "Failed to create temporary file" );
+                        appupdater.setMessage( "Failed to create temporary file", true );
                     });
                 },
                 function error(e) { 
-                    $("#settingsmessage").text( "Failed to open root directory" );
+                    appupdater.setMessage( "Failed to open root directory", true );
                 });
             }
             else
             {
-                $("#settingsmessage").text( "Invalid HTTP response" );
+                appupdater.setMessage( "Failed to download the APK", true );
             }
         };
         

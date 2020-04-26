@@ -17,7 +17,7 @@
   -->
 <div class="container flex-justify-center" id="splashscreen">  
     <div class="startup-message text-align-center">WeatherClock is loading</div>
-    <div class="startup-version text-align-center">Version 1.0.30</div>
+    <div class="startup-version text-align-center">Version 1.0.33</div>
 </div>
 
 <!-- 
@@ -282,6 +282,19 @@
     </div>
   </div>
 </div>
+
+<!-- Dialog showing the daily weather forecast -->
+<div id="app-download-dialog" class="daily-modal">
+
+  <!-- Modal content -->
+  <div class="daily-modal-content flex-column">
+
+    <div id="app-download-info">Downloading the APK file</div>
+    <div id="app-download-progress-wrap">
+        <div id="app-download-progress"></div>
+    </div>      
+  </div>
+</div>  
 
 <script type="text/javascript" src="cordova.js"></script>
 <script type="text/javascript" src="js/ext/jquery.min.js"></script>
