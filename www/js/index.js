@@ -331,6 +331,7 @@ function updateUI( redrawForecast )
         for ( let i = 0; i < Math.min( forecast.combined.daily.length, 6 ); i++ )
         {
             let fdata = forecast.combined.daily[ i ];
+            console.log( fdata );
             let wtime = moment( fdata.startTime );
             $("#weather-next-date-" + i ).text( wtime.format( "ddd MMM DD", config.timeLocale ) );
             $("#weather-next-sum-" + i ).text( fdata.summary );

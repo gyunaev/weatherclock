@@ -252,13 +252,17 @@ class ForecastProvider
             // Did the day change? Init the structure
             if ( ts.getDay() != currentday )
             {
-                daily.push( { startTime : ts, descs : [], temperatureHigh : -1, temperatureLow : 9999, rainhours : 0, windSpeedLow : 9999, windSpeedHigh: 0, hourlyIndex : hourly.length } );
+                daily.push( { startTime : ts, descs : [], faicons : [], temperatureHigh : -1, temperatureLow : 9999, rainhours : 0, windSpeedLow : 9999, windSpeedHigh: 0, hourlyIndex : hourly.length } );
                 currentday = ts.getUTCDay();
             }
             
+            // Wind is reported with 'mph' suffix and we only need the number
             let m = h.windSpeed.match( /^(\d+)\s*mph/ );
+
             if ( m != null )
                 h.windSpeed = m[1];
+            
+            let faicon = this.convertFAicon( h.icon );
             
             // Store the hourly forecast
             hourly.push({
@@ -271,7 +275,7 @@ class ForecastProvider
                     windDirection: h.windDirection,
                     icon: h.icon,
                     shortForecast: h.shortForecast,
-                    faicon : this.convertFAicon( h.icon )
+                    faicon : faicon
                         });
 
             // Store some data in daily
@@ -284,9 +288,15 @@ class ForecastProvider
                 
                 daily[ index ].temperatureHigh = Math.max( daily[ index ].temperatureHigh, h.temperature );
                 daily[ index ].temperatureLow = Math.min( daily[ index ].temperatureLow, h.temperature );
-                daily[ index ].descs.push( h.shortForecast );
                 
-                if ( daily[ index ].faicon == "fa-water" )
+                // Store for future counting - we only count weather between 7am and 8pm
+                if ( ts.getHours() > 6 && ts.getHours() < 21 )
+                {
+                    daily[ index ].descs.push( h.shortForecast );
+                    daily[ index ].faicons.push( faicon );
+                }
+                
+                if ( faicon == "fa-water" )
                     daily[ index ].rainhours++;
             }
         }
@@ -299,6 +309,9 @@ class ForecastProvider
             // See https://stackoverflow.com/questions/1053843/get-the-element-with-the-highest-occurrence-in-an-array
             h.summary = h.descs.sort( (a,b) => h.descs.filter(v => v===a).length - h.descs.filter(v => v===b).length ).pop();
             delete h.descs;
+            
+            h.faicon = h.faicons.sort( (a,b) => h.faicons.filter(v => v===a).length - h.faicons.filter(v => v===b).length ).pop();
+            delete h.faicons;
             
             // thanks Vladimir Agafonkin for a great library: https://github.com/mourner/suncalc/blob/master/suncalc.js
             h.suntimes = SunCalc.getTimes( new Date( h.startTime ), coords[0], coords[1] );

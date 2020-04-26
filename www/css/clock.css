@@ -253,7 +253,7 @@ body {
 }
 
 .weather-daily-summary {
-    font-size: 50%;
+    font-size: 100%;
     color: rgb( 64, 64, 64);
     padding-bottom: 0.25em;
 }
