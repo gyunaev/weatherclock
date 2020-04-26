@@ -46,6 +46,7 @@ body {
 
 .body-bg-cloud-moon {
     background-image: url( '../images/weather_partly_cloudy_night.jpg' );
+    color: white;
 }
 
 .body-bg-cloud {
