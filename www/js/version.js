@@ -1,2 +1,2 @@
-var applicationVersion = "1.0.25";
-var applicationBuiltEpoch = 1575524643;
+var applicationVersion = "1.0.29";
+var applicationBuiltEpoch = 1587856797;

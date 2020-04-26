@@ -1,267 +1,429 @@
-//
-// Requests forecast from either forecast.io or from other local stations 
-// which announce (via dns-sd) that they have it
+/*jslint esversion: 6, node : true */
+"use strict";
 
-var forecastprovider = {
- 
-    // Private data storage
-    d : { 
-            httpport : 8000,
-            source : null,
-            status : "Weather never updated",
-            forecast : null,
-            airquality : null,
-            update_callback : null,
-            zeroconf_service_name : null,
-            zeroconf_service_proto : '_weather._tcp.',
-            zeroconf_service_domain : 'local.',
-            debug : { "cordova" : "no", "dnssd" : "disabled", "lastannounce" : "never" }
-        },
+// Requests forecast from NAAO
+
+class ForecastProvider
+{
+    constructor()
+    {
+        // Private data storage
+        this.textStatus = "Weather never updated";
+
+        this.forecast = null;
+        this.current = null;
+        this.airquality = null;
+
+        this.lastUpdateForecast = null;
+        this.lastUpdateCurrent = null;
+
+        // Trigger both updates immediately
+        this.nextAqiUpdate = new Date();
+        this.nextForecastUpdate = new Date();
+        
+        this.update_callback = null;
+            
+        // Icon conversion to fontAwesome
+        // If the icon name ends with - it means 'sun' or 'moon' will be appended (for day or night)
+        this.fontAwesomeIconMapping = {
+                "skc": "fa-",
+                "few": "fa-",
+                "sct": "fa-cloud-",
+                "bkn": "fa-cloud-",
+                "ovc": "fa-cloud",
+                "wind_skc": "fa-wind",
+                "wind_few": "fa-wind",
+                "wind_sct": "fa-wind",
+                "wind_bkn": "fa-wind",
+                "wind_ovc": "fa-wind",
+                "snow": "fa-snowflake",
+                "rain_snow": "fa-cloud-showers-heavy",
+                "rain_sleet": "fa-cloud-showers-heavy",
+                "snow_sleet": "fa-snowflake",
+                "fzra": "fa-cloud-showers-heavy",
+                "rain_fzra": "fa-snowflake",
+                "snow_fzra": "fa-snowflake",
+                "sleet": "fa-snowflake",
+                "rain": "fa-cloud-showers-heavy",
+                "rain_showers": "fa-cloud-showers-heavy",
+                "rain_showers_hi": "fa-cloud-showers-heavy",
+                "tsra": "fa-cloud-showers-heavy",
+                "tsra_sct": "fa-cloud-showers-heavy",
+                "tsra_hi": "fa-cloud-showers-heavy",
+                "tornado": "fa-wind",
+                "hurricane": "fa-wind",
+                "tropical_storm": "fa-water",
+                "dust": "fa-",
+                "smoke": "fa-",
+                "haze": "fa-",
+                "hot": "fa-",
+                "cold": "fa-",
+                "blizzard": "fa-snowflake",
+                "fog": "fa-water"
+            };
+    }
     
     // Initializes the forecast provider.
-    // It also retrieves the latest stored forecast, if it has it,
-    // and lets the app know about it.
-    intialize : function( updatecallback ) {
-        
+    // It also retrieves the latest stored forecast, if it has it, and lets the app know about it.
+    intialize( updatecallback )
+    {
         // Store the update callback
-        forecastprovider.d.update_callback = updatecallback;
+        this.update_callback = updatecallback;
         
-        // Load the stored forecast
-        let wdata = window.localStorage.getItem( "storedforecast" );
+        // Load the stored current, hourly and air quality data 
+        this.forecast = this.validateAndParseJSON( window.localStorage.getItem( "storedforecast" ) );
+        this.current = this.validateAndParseJSON( window.localStorage.getItem( "storedcurrent" ) );
+        this.airquality = this.validateAndParseJSON( window.localStorage.getItem( "storedairquality" ) );
 
-        if ( typeof wdata !== 'undefined' && wdata != null )
+        if ( this.forecast != null && this.current != null )
+        {
+            this.textStatus = "Weather restored from settings";
+            this.lastUpdate = new Date();
+            this.update_callback( null );
+        }
+        
+        // Run the worker asyncrhonously
+        setTimeout( this._timerCallback.bind( this ), 0 );
+    }
+
+    // Main update callback taking care of everything
+    async _timerCallback()
+    {
+        // Is it time to update the grids?
+        let now = new Date();
+        
+        if ( config.forecastNextRecheckTime == null || config.forecastNextRecheckTime < now )
+            await this.resolveStations();
+        
+        // Time to update next forecast?
+        if ( this.nextForecastUpdate <= now )
+            await this.updateForecast();
+        
+        // Do we need AQI update?
+        if ( this.nextAqiUpdate <= now )
+            await this.updateAQI();
+        
+        // We always update current forecast in this callback
+        await this.updateCurrent();
+        
+        // And notift the client without waiting
+        this.update_callback( null );
+
+        // and here we go again
+        setTimeout( this._timerCallback.bind( this ), 60000 );
+    }
+
+    // Returns current forecast
+    status()
+    {
+        let s = { combined : this.forecast, current : this.current, airquality : this.airquality, status : "Never updated" };
+        
+        if ( this.current != null )
+        {
+            s.status = this.textStatus;
+            
+            if ( this.lastUpdateCurrent )
+                s.status + " updated: " + moment( this.lastUpdateCurrent ).fromNow();
+        }
+        else
+            s.status = "No current forecast";
+            
+        return s;
+    }
+
+    debugStatus()
+    {
+        return this.textStatus + " " + this.lastSuccessfulUpdate + " " + config.forecastNextRecheckTime;
+    }
+
+    // Triggers a forecast update
+    triggerUpdate() {
+        
+        this.nextForecastUpdate = null;
+        this.nextAqiUpdate = null;
+        this._timerCallback();
+    }
+    
+    async _retrieve( url, datatype = "json" )
+    {
+        return new Promise( function(resolve, reject) {
+            $.ajax({
+                method: "GET",
+                beforeSend: function(request) {
+                    request.setRequestHeader( "User-Agent", "ba60466c-384e-4714-8626-4af5eb19fb8b" );
+                },
+                url: url,
+                dataType: datatype
+            })
+            .done( function( info ) {
+                resolve( info );
+            } )
+            .fail( function( err ) {
+                reject( err );
+            } )
+        });
+    }
+    
+    async resolveStations()
+    {
+        if ( config.coordinates == "" )
+            return;
+        
+        console.log( "resolveStations called" );
+        
+        // Retrieve the grid information for coordinates
+        let info = await this._retrieve( "https://api.weather.gov/points/" + config.coordinates );
+        
+        if ( info.properties === undefined 
+        || info.properties.forecastHourly === undefined
+        || info.properties.observationStations === undefined )
+        {
+            console.log("error: incorrect data returned by /points/ API");
+            return false;
+        }
+
+        config.forecastUrlHourly = info.properties.forecastHourly;
+    
+        // Retrieve the observation stations
+        let statinfo = await this._retrieve( info.properties.observationStations );
+
+        if ( statinfo.observationStations === undefined )
+        {
+            console.log("error: incorrect data returned by /stations/ API");
+            return false;
+        }
+    
+        // Take the first five stations
+        config.forecastUrlsCurrent = statinfo.observationStations.slice( 0, 4 );
+        
+        // Grid updated
+        config.forecastNextRecheckTime = moment().add( 1, 'day' ).toDate();
+
+        console.log( "resolveStations succeeded. Next on %s", config.forecastNextRecheckTime.toString() );        
+        return true;
+    }
+    
+    convertFAicon( icon )
+    {
+        // Create FA icon
+        if ( icon )
+        {
+            let iconmatch = icon.match( /\/icons\/.*?\/(.*?)\/(.*?)\?/ );
+
+            if ( iconmatch && this.fontAwesomeIconMapping[ iconmatch[2] ] !== undefined )
+            {
+                let faicon = this.fontAwesomeIconMapping[ iconmatch[2] ];
+                
+                if ( faicon.endsWith( '-' ) )
+                    faicon += iconmatch[1] == "night" ? 'moon' : 'sun';
+                
+                return "fas " + faicon;
+            }
+        }
+        
+        return null;
+    }
+
+    async updateForecast()
+    {
+        if ( config.forecastUrlHourly == null && ! await this.resolveStations() )
+            return;
+        
+        console.log( "Updating the weather forecast" );
+
+        let hourlydata = await this._retrieve( config.forecastUrlHourly );
+        
+        if ( hourlydata.properties === undefined || hourlydata.properties.periods === undefined )
+        {
+            console.log( "error: incorrect data returned by /forecast/ API" );
+            this.textStatus = "Forecast update failed";
+            return;
+        }            
+        
+        // Will have the forecast combined by days, together with extra info
+        let hourly = [];
+        let daily = [];
+        let currentday = new Date().getDay();
+        
+        for ( let h of hourlydata.properties.periods )
+        {
+            let ts = new Date( h.startTime );
+
+            // Did the day change? Init the structure
+            if ( ts.getDay() != currentday )
+            {
+                daily.push( { startTime : ts, descs : [], temperatureHigh : -1, temperatureLow : 9999, rainhours : 0, windSpeedLow : 9999, windSpeedHigh: 0, hourlyIndex : hourly.length } );
+                currentday = ts.getUTCDay();
+            }
+            
+            let m = h.windSpeed.match( /^(\d+)\s*mph/ );
+            if ( m != null )
+                h.windSpeed = m[1];
+            
+            // Store the hourly forecast
+            hourly.push({
+                    startTime : h.startTime,
+                    ts : new Date( h.startTime ),
+                    isDaytime : h.isDaytime,
+                    temperature : h.temperature,
+                    temperatureUnit : h.temperatureUnit,
+                    windSpeed: h.windSpeed,
+                    windDirection: h.windDirection,
+                    icon: h.icon,
+                    shortForecast: h.shortForecast,
+                    faicon : this.convertFAicon( h.icon )
+                        });
+
+            // Store some data in daily
+            let index = daily.length - 1;
+            
+            if ( index >= 0 )
+            {
+                daily[ index ].windSpeedLow = Math.min( daily[ index ].windSpeedLow, h.windSpeed );
+                daily[ index ].windSpeedHigh = Math.max( daily[ index ].windSpeedHigh, h.windSpeed );
+                
+                daily[ index ].temperatureHigh = Math.max( daily[ index ].temperatureHigh, h.temperature );
+                daily[ index ].temperatureLow = Math.min( daily[ index ].temperatureLow, h.temperature );
+                daily[ index ].descs.push( h.shortForecast );
+                
+                if ( daily[ index ].faicon == "fa-water" )
+                    daily[ index ].rainhours++;
+            }
+        }
+    
+        // Iterate through daily and create summaries
+        let coords = config.coordinates.split( ',' );
+        
+        for ( let h of daily )
+        {
+            // See https://stackoverflow.com/questions/1053843/get-the-element-with-the-highest-occurrence-in-an-array
+            h.summary = h.descs.sort( (a,b) => h.descs.filter(v => v===a).length - h.descs.filter(v => v===b).length ).pop();
+            delete h.descs;
+            
+            // thanks Vladimir Agafonkin for a great library: https://github.com/mourner/suncalc/blob/master/suncalc.js
+            h.suntimes = SunCalc.getTimes( new Date( h.startTime ), coords[0], coords[1] );
+        }
+        
+        let forecast = { daily : daily, hourly : hourly, suntimes : SunCalc.getTimes( new Date(), coords[0], coords[1] ) };
+        
+        // Set last/next update
+        this.lastUpdateForecast = new Date();
+        this.nextForecastUpdate = moment().add( 60, 'minutes' ).toDate();
+        this.textStatus = "New forecast received from NOAA";
+        this.forecast = forecast;
+        
+        window.localStorage.setItem( "storedforecast", JSON.stringify( this.forecast ) );
+        console.log( "Weather forecast updated, next update: %s", this.nextForecastUpdate );
+    }
+
+    async updateAQI()
+    {
+        if ( config.forecastUrlAirQuality == null )
+            return;
+            
+        let aquidata = await this._retrieve( config.forecastUrlAirQuality );
+        
+        if ( aquidata.data === undefined || aquidata.data.aqi === undefined )
+        {
+            this.textStatus = "AQI update failed";
+            this.airquality = "N/A";
+        }
+        else
+            this.airquality = aquidata.data.aqi;
+        
+        this.nextAqiUpdate = moment().add( 5, 'minutes' ).toDate();        
+    }    
+    
+    async updateCurrent()
+    {
+        let getRegexpMatch = function( src, regex, error )
+            {
+                let match = src.match( regex );
+        
+                if ( !match )
+                    throw( error );
+        
+                return match[1];
+            }
+    
+        // Current icon and text conditions
+        try
+        {
+            let coords = config.coordinates.split( ',' );
+            let htmldata = await this._retrieve( `https://forecast.weather.gov/MapClick.php?lat=${ coords[0] }&lon=${ coords[1] }`, "html" );
+            
+            let result = { 
+                ts : new Date(),
+                icon : getRegexpMatch( htmldata, /<div id="current_conditions-summary" class="pull-left" >\s+<img src="newimages\/large\/(.*?)\.png"/, "icon" ),
+                summary : getRegexpMatch( htmldata, /<p class="myforecast-current">(.*?)<\/p>/, "summary" ),
+                temperature : getRegexpMatch( htmldata, /<p class="myforecast-current-lrg">(\d+)&deg;F<\/p>/, "temperature" ),
+                wind : getRegexpMatch( htmldata, /Wind Speed<\/b><\/td>\s*<td>(.*?)<\/td>/, "wind" ),
+                barometricPressure : getRegexpMatch( htmldata, /Barometer<\/b><\/td>\s*<td>(.*?) in/, "pressure" ),
+                relativeHumidity : getRegexpMatch( htmldata, /Humidity<\/b><\/td>\s+<td>(\d+)%<\/td>/, "humidity" ),
+                updateTime : getRegexpMatch( htmldata, /Last update<\/b><\/td>\s*<td>\s*(.*?)\s*<\/td>/, "uptime" )
+            };
+        
+            // Parse wind speed and direction
+            let match = result.wind.match( /^(\w+)\s+(\d+)\s*MPH/ );
+            if ( match )
+            {
+                result.windDirection = match[1];
+                result.windSpeed = match[2];
+            }
+            else
+            {
+                result.windDirection = "-";
+                result.windSpeed = 0;
+            }
+            
+            // Trim result.icon to match fa-
+            let testicon = result.icon;
+            
+            if ( testicon.length == 4 )
+                testicon = testicon.substr( 1 );
+        
+            if ( this.fontAwesomeIconMapping[ testicon ] === undefined )
+            {
+                console.log( "Error converting icon " + result.icon );
+                result.faicon = "fas fa-sun";
+            }
+            else
+            {
+                result.faicon = "fas " + this.fontAwesomeIconMapping[ testicon ];
+                
+                if ( result.faicon.endsWith( '-' ) )
+                    result.faicon += result.icon[0] == 'n' ? 'moon' : 'sun';
+            }                
+
+            this.current = result;
+            this.lastUpdateCurrent = new Date();
+            window.localStorage.setItem( "storedcurrent", JSON.stringify( this.current ) );
+            console.log( "Current forecast updated " + result.updateTime );
+        }
+        catch ( err )
+        {
+            console.log( "Failed to parse " + err + " while parsing current forecast" );
+            this.textStatus = "Current conditions error: " + err;
+            this.current = {};
+        }
+    }
+    
+    validateAndParseJSON( text )
+    {
+        if ( typeof text !== 'undefined' && text != null )
         {
             try
             {
-                forecastprovider.d.forecast = JSON.parse( wdata );
+                let json = JSON.parse( text );
                 
-                if ( typeof(forecastprovider.d.forecast) != 'object' )
-                    forecastprovider.d.forecast = null;
+                if ( typeof(json) == 'object' )
+                    return json;
+
             }
-            catch ( ex ) { console.log( "failed to parse forecast: %j", ex ); }
-            
-            if ( forecastprovider.d.forecast != null )
-            {
-                forecastprovider.d.source = "settings";
-                forecastprovider.d.status = "Weather restored from settings, updated";
-                forecastprovider.d.update_callback( null, forecastprovider.d.forecast );
-            }
+            catch ( ex ) { console.log( "failed to parse json: %j", ex ); }
         }
         
-        // Initialize the DNS-SD plugin on Cordova
-        if ( typeof cordova !== 'undefined' )
-        {
-            forecastprovider.d.debug[ "cordova" ] = "yes";
-                   
-            // Launch weather announcement if we have the data and not yet announced it
-            if ( forecastprovider.d.forecast != null )
-                forecastprovider.announceForecast();
-        
-            // Listen to other annoucements
-            cordova.plugins.zeroconf.watch('_tcp.', 'local.', function(result) {
-                    let action = result.action;
-                    let service = result.service;
-    
-                    console.log('service %s %j', action, service);
-                    forecastprovider.d.debug[ "lastannounce" ] = action + " " + service;
-            }); 
-            
-            //cordova.plugins.zeroconf.reInit();
-        }
-        
-        // Schedule Internet update each 1 minute
-        setInterval( forecastprovider.updateFromInternet, 60000 );
-    },
-
-    announceForecast : function()
-    {
-        // Only works with Cordova
-        if ( typeof cordova === 'undefined' )
-            return;
-        
-        /*
-        // We have to shut down the service first if it was announced
-        if ( forecastprovider.d.zeroconf_service_name != null )
-        {
-            let name = forecastprovider.d.zeroconf_service_name;
-            forecastprovider.d.zeroconf_service_name = null;
-            
-            console.log( "Zeroconf: unregistering service " + name );
-            
-            cordova.plugins.zeroconf.unregister( 
-                forecastprovider.d.zeroconf_service_proto,
-                forecastprovider.d.zeroconf_service_domain,
-                name,
-                function success() { 
-                    
-                    console.log( "Zeroconf: unregistered service successfully" );
-                    forecastprovider.d.debug[ "dnssd" ] = "stopped";
-
-                    // Wait one second and repeat the call
-                    setTimeout( function() { forecastprovider.announceForecast() }, 1000 ); 
-                },
-                function failure() {
-                    console.log( "Zeroconf: failed to unregister service" );
-                    forecastprovider.announceForecast();
-                } );
-        }
-        else
-        {
-            forecastprovider.d.zeroconf_service_name = config.deviceName;
-            
-            if ( forecastprovider.d.zeroconf_service_name = "" )
-                forecastprovider.d.zeroconf_service_name = "unnamed";
-            
-            let wdata = {};
-            
-            if ( forecastprovider.d.forecast )
-            {
-                wdata.weather = forecastprovider.d.forecast.currently.time;
-                wdata.source = forecastprovider.d.source;
-            }
-                
-            console.log( "Zeroconf: registering service %s, status %j", name, wdata );
-
-            cordova.plugins.zeroconf.register( 
-                forecastprovider.d.zeroconf_service_proto,
-                forecastprovider.d.zeroconf_service_domain,
-                forecastprovider.d.zeroconf_service_name, 
-                8000,
-                wdata,
-                function success(){ 
-                    console.log('Zeroconf: device registered successfully' ); 
-                    forecastprovider.d.debug[ "dnssd" ] = "working";
-                },
-                function failed() {
-                    console.log( "Zeroconf: failed to announce weather service" ); 
-                    forecastprovider.d.debug[ "dnssd" ] = "failed";
-            });
-        }
-        */
-    },
-    
-    current : function() {
-        return forecastprovider.d.forecast;
-    },
-    
-    forecastUpdated : function( forecast, airquality ) {
-        
-        if ( airquality )
-            forecast.airquality = airquality.data;
-        else
-            forecast.airquality = null;
-        
-        forecastprovider.d.forecast = forecast;
-        forecastprovider.d.source = "internet";
-        forecastprovider.d.status = "Weather updated from DarkSky";
-            
-        // Store the forecast
-        saveSetting( "storedforecast", forecastprovider.d.forecast );
-
-        // Announce it
-        forecastprovider.announceForecast();
-            
-        // And notify the provider
-        forecastprovider.d.update_callback( null, forecastprovider.d.forecast );
-    },
-    
-    updateFromInternet : function() {
-
-        if ( config.forecastURL == "" )
-            return;
-        
-        $.ajax({
-            method: "GET",
-            url: config.forecastURL,
-            dataType: "json"
-        })
-        .done( function( forecast ) { 
-          
-            if ( config.airQualityURL != "" )
-            {
-                $.ajax({
-                    method: "GET",
-                    url: config.airQualityURL,
-                    dataType: "json"
-                })
-                .done( function( s ) { 
-
-                    forecastprovider.forecastUpdated( forecast, s );
-
-                })
-                .fail( function( s ) {
-                    
-                    forecastprovider.forecastUpdated( forecast, null );
-                    
-                });
-            }        
-        })
-        .fail( function( s ) {
-            
-            forecastprovider.d.update_callback( "Weather forecast update failed" );
-            
-        });
-    },
-    
-    convertIcon : function( icontext ) {
-
-        switch ( icontext )
-        {
-            case "clear-day":
-                return "fas fa-sun";
-
-                case "clear-night":
-                    return "fas fa-moon";
-
-                case "cloudy":
-                    return "fas fa-cloud";
-
-                case "fog":
-                    return "fas fa-water";
-
-                case "hail":
-                    return "fas fa-water";
-
-                case "partly-cloudy-day":
-                    return "fas fa-cloud-sun";
-
-                case "partly-cloudy-night":
-                    return "fas fa-cloud-moon";
-
-                case "rain":
-                case "thunderstorm":
-                    return "fas fa-cloud-showers-heavy";
-                    
-                case "sleet":
-                    return "fas fa-cloud-rain";
-
-                case "snow":
-                    return "far fa-snowflake";
-            }
-            
-            return "fas fa-wind";
-    },          
-
-    currentStatus : function() {
-
-        if ( forecastprovider.d.forecast == null )
-            return forecastprovider.d.status;
-        
-        return forecastprovider.d.status + " " + moment.unix( forecastprovider.d.forecast.currently.time ).fromNow();
-    },
-    
-    debugStatus : function() {
-
-        let outstr = "";
-        
-        for ( let l in forecastprovider.d.debug )
-        {
-            if ( outstr != "" )
-                outstr += ", ";
-            
-            outstr += l + ": " + forecastprovider.d.debug[l];
-        }
-        
-        return outstr;
+        return null;
     }
+    
 };

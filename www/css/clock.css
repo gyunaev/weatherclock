@@ -31,16 +31,24 @@ body {
     font-size: 250%;
 }
 
-.body-bg-clear-day {
+.body-bg-sun {
     background-image: url( '../images/weather_clear_day.jpg' );
 }
 
-.body-bg-clear-night {
+.body-bg-moon {
     background-image: url( '../images/weather_clear_night.jpg' );
     color: white;
 }
 
-.body-bg-cloudy {
+.body-bg-cloud-sun {
+    background-image: url( '../images/weather_partly_cloudy_day.jpg' );
+}
+
+.body-bg-cloud-moon {
+    background-image: url( '../images/weather_partly_cloudy_night.jpg' );
+}
+
+.body-bg-cloud {
     background-image: url( '../images/weather_cloudy.jpg' );
 }
 
@@ -52,11 +60,11 @@ body {
     background-image: url( '../images/weather_hail.jpg' );
 }
 
-.body-bg-partly-cloudy-day {
+.body-bg-partly-cloudy-sun {
     background-image: url( '../images/weather_partly_cloudy_day.jpg' );
 }
 
-.body-bg-partly-cloudy-night {
+.body-bg-partly-cloudy-moon {
     background-image: url( '../images/weather_partly_cloudy_night.jpg' );
     color: white;
 }
@@ -177,6 +185,21 @@ body {
     box-shadow:inset 0px 1px 3px 0px #000000;
 }
 
+.daily-modal-hourly {
+    width: 15%;
+    font-size: 50%;
+    text-align: center;
+    border: 1;
+    border:1px solid white;
+    padding: 0.5em;
+    margin: 0.1em;
+    border-radius: 10px;
+    color: black;
+    background-color: rgba( 224, 224, 224, 1.0 );
+    box-shadow:inset 0px 1px 3px 0px #000000;
+}
+
+
 .weather-hourly-day {
     border:1px solid white;
     color: black;
@@ -219,8 +242,8 @@ body {
 
 .weather-daily-date {
     font-weight:bold;
-    padding-bottom: 0.25em;
-    padding-top: 0.5em;
+    padding-bottom: 0.1em;
+    padding-top: 0.1em;
     background-color: rgba( 128, 128, 128, 1.0 );
 }
 
@@ -390,7 +413,18 @@ label {
 	border:1px solid #000000;
     margin-left: 50px;
     padding: 5px;
-    font-size: 100%;
+    font-size: 75%;
+}
+
+#settings-remoteconfig {
+    color: #f8f9fa;
+    width: 12em;
+	background-color: #1faede;
+	border-radius:5px;
+	border:1px solid #000000;
+    margin-left: 50px;
+    padding: 5px;
+    font-size: 75%;
 }
 
 #settings-bottom-row {

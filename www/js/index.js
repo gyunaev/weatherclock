@@ -1,19 +1,68 @@
-// track changing temp
+/*jslint esversion: 6, node : true */
+"use strict";
 
-// Configuration
-var config = null;
+//
+// Global application configuration
+//
+var config = 
+{
+    // Local time zone where this device is running
+    localTimezone : "America/Los_Angeles",
 
-// Various timeout handlers
-var timeoutTimerHandle = null;
+    // Extra timezones to show times on screen (up to 4)
+    timezones: [ "Europe/Bucharest", "Asia/Ho_Chi_Min", "Asia/Tokyo", "Europe/London" ],
 
-// Stored weather forecast
-var storedForecast = null;
+    // Units to use: I[mprerial] or M[etric]
+    units : "I",
+
+    // Locale to use for times/days/months
+    timeLocale : "en",
+
+    // Georgraphical coordinates of the location for weather forecast
+    coordinates : "",
+        
+    // How to space the hourly forecast (2/3/4 hours step)
+    forecastHourStep : 2,
+
+    // start URL (to use with Back button)
+    startURL : null,
+
+    // When device is kept for more than keepTime ms, drop brighness to idleLevel
+    brightnessKeepTime : 10000,
+    brightnessIdleLevel : 0.1,
+
+    //
+    // For weather forecast
+    //
+
+    // Stores the URL to update the hourly forecast from
+    forecastUrlHourly : null,
+        
+    // Unix time when the above URLs need to be rechecked again, or "never" to stick to the above URLs.
+    // see forecast.js for more details
+    forecastNextRecheckTime : null,
+        
+    // URL + token to download the air quality forecast from. If null, AQ forecast is not downloaded
+    forecastUrlAirQuality : null,
+        
+    // URL to download the updated APKs from. If null, APK update is not supported
+    appUpdaterApkURL : null,
+
+    // UI modifications, if any, stored as JS code which runs on start. Can be used to customize the clock.
+    // It is eval()ed, so beware. Could be either a string or array (in which case its joined \n)
+    uiModificationsJS : null
+};
+
+
+
+// Timeout handlers for auto-close dialog and brighness
+var timeoutTimerHandle = null, brighnessTimeoutHandle = null;
+
+// Forecast provider
+var forecastProvider = null;
 
 // Last seen temperature (to track changes)
 var lastTemperature = null;
-
-// Start URL (for back button)
-var startURL = null;
 
 // Error stack with messages received. The new messages come on top.
 // Each message is an object with type and msg properties.
@@ -23,34 +72,8 @@ var errorMessages = [];
 // An original statusbar message (shown when no errors)
 var originalStatusMessage = "";
 
-// Hourly spacing for daily forecast
-var dailyForecastHourlySpacing = 2;
-
-
-//
-// Brightness configuration
-//
-
-// Keep the screen bright for 30 seconds after the last activity. After this drop it to 50% brighness
-let brightnessKeepTime = 10000;
-let brightnessIdleLevel = 0.1;
-let brighnessTimeoutHandle = null;
-
-function loadSettings()
+function applySettings( data )
 {
-    // Initialize default configuration which we can override
-    config = { 
-        unitTimezone : "America/Los_Angeles",
-        units : "I",
-        timeLocale : "en",
-        forecastURL : "",
-        airQualityURL : "",
-        timezones: []
-    };
-
-    // Load config
-    let data = window.localStorage.getItem( "config" );
-    
     if ( typeof data !== 'undefined' && data != null )
     {
         try
@@ -65,6 +88,17 @@ function loadSettings()
         { 
             console.log( "failed to parse config"); 
         }
+    }
+    
+    if ( config.uiModificationsJS != null )
+    {
+        let code = config.uiModificationsJS;
+        
+        if ( Array.isArray( code ) )
+            code = code.join( "\n" );
+        
+        console.log( "Runnign the custom JS code:\n", code ); 
+        eval( code );
     }
 
     // Save the config as we have may modified it
@@ -91,25 +125,56 @@ function showDetailedDialog( blockid )
         return;
     
     let id = 1 + m[1];
-    let fdata = storedForecast.daily.data[ 1 + Number( m[1] ) ];
-
-    let wtime = moment.unix( fdata.time );
-    $(".daily-modal-date").text( wtime.format( "ddd MMM DD", config.timeLocale ) );
-    $(".daily-modal-details").html( '<i class="' + forecastprovider.convertIcon( fdata.icon ) + '"></i> ' 
-                    + convertUnit( fdata.temperatureLow, "temperature" ) 
-                        + " <span class='smallerfont'>at " + moment.unix( fdata.temperatureLowTime ).format("HH:MM") + "</span>"
-                    + " / "
-                    + convertUnit( fdata.temperatureHigh, "temperature" )
-                        + " <span class='smallerfont'>at " + moment.unix( fdata.temperatureHighTime ).format("HH:MM") + "</span>" );
+    let fdata = forecastProvider.status().combined.daily[ Number( m[1] ) ];
     
-    let outsummary = fdata.summary + "<br>Humidity " + fdata.humidity + "%, Wind " + fdata.windSpeed + "mph";
-                    
-    if ( fdata.precipType !== undefined )
-        outsummary += ", " + fdata.precipType + " chance: " + Math.floor( fdata.precipProbability ) + " %";
+    console.log( fdata );
+    console.log( forecastProvider.status().combined.hourly );
+
+    let wtime = moment( fdata.startTime );
+    $(".daily-modal-date").text( wtime.format( "ddd MMM DD", config.timeLocale ) );
+    $(".daily-modal-details").html( '<i class="' + fdata.faicon + '"></i> ' 
+                    + convertUnit( fdata.temperatureLow, "temperature" ) 
+                    + " / "
+                    + convertUnit( fdata.temperatureHigh, "temperature" ) + "</span>" );
+    
+    let outsummary = fdata.summary + ", wind " + fdata.windSpeedLow + "-"  + fdata.windSpeedHigh + " mph";
+    
+    if ( fdata.rainhours > 0 )
+        outsummary += ", rain: " + fdata.rainhours + " hours";
 
     $(".daily-modal-summary").html( outsummary );
-    $("#daily-modal-sunrise").text( moment.unix( fdata.sunriseTime ).tz( config.unitTimezone ).format( 'LT', config.timeLocale ) );
-    $("#daily-modal-sunset").text( moment.unix( fdata.sunsetTime ).tz( config.unitTimezone ).format( 'LT', config.timeLocale ) );
+    $("#daily-modal-sunrise").text( moment( fdata.suntimes.sunrise ).tz( config.localTimezone ).format( 'LT', config.timeLocale ) );
+    $("#daily-modal-sunset").text( moment( fdata.suntimes.sunset ).tz( config.localTimezone ).format( 'LT', config.timeLocale ) );
+
+    // Hourly details
+    let hourlydata = forecastProvider.status().combined.hourly;
+    let today_sunset = moment( fdata.suntimes.sunset ).tz( config.localTimezone ).hour();
+    let today_sunrise = moment( fdata.suntimes.sunrise ).tz( config.localTimezone ).hour();
+        
+    for ( let i = 0; i < 6; i++ )
+    {
+        // We start from 6am and covering until midnight (every 3 hours
+        let hdata = forecastProvider.status().combined.hourly[ i * 3 + 6 + fdata.hourlyIndex ];
+        let wtime = moment.utc( hdata.startTime ).tz( config.localTimezone );
+
+        $("#daily-modal-cur-time-" + i ).html( wtime.format( "LT", config.timeLocale ) );
+        $("#daily-modal-cur-sum-" + i ).text( hdata.shortForecast );
+        $("#daily-modal-cur-details-" + i).html( '<i class="' + hdata.faicon + '"></i> ' 
+                + convertUnit( hdata.temperature, "temperature" ) );
+        
+        let a = wtime.hour();
+        if ( wtime.hour() > today_sunset || wtime.hour() < today_sunrise )
+        {
+            $("#daily-modal-hourly-" + i).removeClass( "weather-hourly-day" );
+            $("#daily-modal-hourly-" + i).addClass( "weather-hourly-night" );
+        }
+        else
+        {
+            $("#daily-modal-hourly-" + i).removeClass( "weather-hourly-night" );
+            $("#daily-modal-hourly-" + i).addClass( "weather-hourly-day" );
+        }
+    }
+
     $("#daily-details-dialog").show();
     
     // Auto-close the dialog in 60 seconds
@@ -143,10 +208,8 @@ function convertUnit( value, unit, useunits )
     
     if ( unit == 'pressure' )
     {
-        if ( useunits == "I" )
-            return (value * 0.03 ).toFixed( 2 ) + "<span class='smallerfont'>inHg</span>";
-        else
-            return Math.round( value ) + "<span class='smallerfont'>hPa</span>";
+        //FIXME
+        return value + "<span class='smallerfont'>inHg</span>";
     }    
 
     if ( unit == 'speed' )
@@ -160,7 +223,7 @@ function convertUnit( value, unit, useunits )
     return "ERROR";
 }
 
-function updateUI( forecast )
+function updateUI( redrawForecast )
 {
     // If settings UI is visible, do not update the UI
     if ( $("#settingswindow").is(":visible") )
@@ -174,7 +237,7 @@ function updateUI( forecast )
     }
     
     // Update local time and date
-    let now = moment.tz( config.unitTimezone );
+    let now = moment.tz( config.localTimezone );
     $("#nowtime").text( now.format( 'LTS', config.timeLocale ) );
     $("#nowdate").text( now.format( 'dddd LL', config.timeLocale ) );
 
@@ -185,7 +248,7 @@ function updateUI( forecast )
         if ( typeof config.timezones[i] !== 'undefined' && config.timezones[i] )
         {
             let tztime = now.tz( config.timezones[i] );
-            let tzstring = config.timezones[i].replace( /.*\//, '' ).replace( /_/, ' ' ) + ": " + tztime.format('LT', config.timeLocale ) + appendIfNextDay( tztime );
+            let tzstring = config.timezones[i].replace( /.*\//, '' ).replace( /_/g, ' ' ) + ": " + tztime.format('LT', config.timeLocale ) + appendIfNextDay( tztime );
                 
             $("#timezone_" + i ).html( tzstring );
         }
@@ -194,12 +257,12 @@ function updateUI( forecast )
     }
     
     // Do we need to redraw weather forecast?  
-    if ( typeof forecast != 'undefined' && forecast != null )
+    if ( redrawForecast )
     {
-        storedForecast = forecast;
-        
+        let forecast = forecastProvider.status();
+    
         // Do we need to replace background?
-        let bgclass = "body-bg-" + forecast.currently.icon;
+        let bgclass = "body-bg-" + forecast.current.faicon.substr( 7 );
         
         // Current details
         if ( !$("body").hasClass( bgclass ) )
@@ -208,50 +271,47 @@ function updateUI( forecast )
             $("body").addClass( bgclass );
         }
         
-        let curicon = forecastprovider.convertIcon( forecast.currently.icon );
         let outtemp = "";
+        let temperature = forecast.current.temperature;
 
-        if ( forecast.airquality !== undefined && typeof forecast.airquality.aqi === "number" )
-            outtemp += forecast.airquality.aqi + "<span class='smallfont'>ppm2</span> ";
+        if ( forecast.airquality !== null )
+            outtemp += forecast.airquality + "<span class='smallfont'>ppm2</span> ";
         
-        outtemp += '<i class="' + curicon + '"></i> ' + convertUnit( forecast.currently.apparentTemperature, "temperature", 'I' )
-            + '<span class="smallerfont"> (' + convertUnit( forecast.currently.apparentTemperature, "temperature", 'G' ) + ")</span>";
+        outtemp += '<i class="' + forecast.current.faicon + '"></i> ' + convertUnit( temperature, "temperature", 'I' )
+            + '<span class="smallerfont"> (' + convertUnit( temperature, "temperature", 'G' ) + ")</span>";
         
         // Last temperature trend
         if ( lastTemperature !== null )
         {
-            if ( lastTemperature < forecast.currently.apparentTemperature )
+            if ( lastTemperature < temperature )
                 outtemp += '<i style="transform: rotate(45deg);" class="fas fa-arrow-up"></i>';
-            if ( lastTemperature > forecast.currently.apparentTemperature )
+            if ( lastTemperature > temperature )
                 outtemp += '<i style="transform: rotate(135deg);" class="fas fa-arrow-up"></i>';
         }
         
-        lastTemperature = forecast.currently.apparentTemperature;
+        lastTemperature = temperature;
             
         $("#nowtemp").html( outtemp );
         
         // Create description string
-        $("#nowweather").html( forecast.currently.summary 
-            + ", " + Math.round( forecast.currently.humidity ) + "%RH, "
-            + convertUnit( forecast.currently.pressure, "pressure" ) + ", "
-            + convertUnit( forecast.currently.windSpeed, 'speed' ) );
-        
-        // Hourly-summary
-        $("#weather-cur-summary").text( forecast.hourly.summary );
-        
+        $("#nowweather").html( forecast.current.summary
+            + ", " + Math.round( forecast.current.relativeHumidity ) + "%RH, "
+            + convertUnit( forecast.current.barometricPressure, "pressure" ) + ", "
+            + convertUnit( forecast.current.windSpeed, 'speed' ) );
+
         // Hourly details
-        let hourstep = Math.min( dailyForecastHourlySpacing, Math.floor( (forecast.hourly.data.length - 1) ) );
-        let today_sunset = moment.unix( forecast.daily.data[0].sunsetTime ).tz( config.unitTimezone ).hour();
-        let today_sunrise = moment.unix( forecast.daily.data[0].sunriseTime ).tz( config.unitTimezone ).hour();
+        let hourstep = Math.min( config.forecastHourStep, Math.floor( (forecast.combined.hourly.length - 1) ) );
+        let today_sunset = moment( forecast.combined.suntimes.sunset ).tz( config.localTimezone ).hour();
+        let today_sunrise = moment( forecast.combined.suntimes.sunrise ).tz( config.localTimezone ).hour();
         
         for ( let i = 0; i < 6; i++ )
         {
-            let fdata = forecast.hourly.data[ i * hourstep + 1 ];
-            let wtime = moment.unix( fdata.time ).tz( config.unitTimezone );
+            let fdata = forecast.combined.hourly[ i * hourstep + 1 ];
+            let wtime = moment.utc( fdata.startTime ).tz( config.localTimezone );
 
             $("#weather-cur-time-" + i ).html( wtime.format( "LT", config.timeLocale ) + appendIfNextDay( wtime ) );
-            $("#weather-cur-sum-" + i ).text( fdata.summary );
-            $("#weather-cur-details-" + i).html( '<i class="' + forecastprovider.convertIcon( fdata.icon ) + '"></i> ' 
+            $("#weather-cur-sum-" + i ).text( fdata.shortForecast );
+            $("#weather-cur-details-" + i).html( '<i class="' + fdata.faicon + '"></i> ' 
                     + convertUnit( fdata.temperature, "temperature" ) );
             
             let a = wtime.hour();
@@ -268,19 +328,19 @@ function updateUI( forecast )
         }
         
         // Future forecast
-        for ( let i = 0; i < Math.min( forecast.daily.data.length, 6 ); i++ )
+        for ( let i = 0; i < Math.min( forecast.combined.daily.length, 6 ); i++ )
         {
-            let fdata = forecast.daily.data[ i + 1 ];
-            let wtime = moment.unix( fdata.time );
+            let fdata = forecast.combined.daily[ i ];
+            let wtime = moment( fdata.startTime );
             $("#weather-next-date-" + i ).text( wtime.format( "ddd MMM DD", config.timeLocale ) );
             $("#weather-next-sum-" + i ).text( fdata.summary );
-            $("#weather-next-details-" + i).html( '<i class="' + forecastprovider.convertIcon( fdata.icon ) + '"></i> ' 
+            $("#weather-next-details-" + i).html( '<i class="' + fdata.faicon + '"></i> ' 
                     + convertUnit( fdata.temperatureLow, "temperature" ) 
                     + " / "
                     + convertUnit( fdata.temperatureHigh, "temperature" ) );
 
-            $("#weather-next-sunrise-" + i).text( moment.unix( fdata.sunriseTime ).tz( config.unitTimezone ).format( 'LT', config.timeLocale ) );
-            $("#weather-next-sunset-" + i).text( moment.unix( fdata.sunsetTime ).tz( config.unitTimezone ).format( 'LT', config.timeLocale ) );
+            $("#weather-next-sunrise-" + i).text( moment( fdata.suntimes.sunrise ).tz( config.localTimezone ).format( 'LT', config.timeLocale ) );
+            $("#weather-next-sunset-" + i).text( moment( fdata.suntimes.sunset ).tz( config.localTimezone ).format( 'LT', config.timeLocale ) );
             
             // Remove all weather-daily-temp- classes
             for ( let c of [ "weather-daily-temp-cold", "weather-daily-temp-awfulhot", "weather-daily-temp-veryhot", "weather-daily-temp-hot", "weather-daily-rain" ] )
@@ -306,7 +366,7 @@ function updateUI( forecast )
     }
     
     // Set the new status bar message
-    originalStatusMessage = forecastprovider.currentStatus();
+    originalStatusMessage = forecastProvider.status().status;    
     updateStatusBar();
 
     if ( $("#mainwindow").hasClass("d-none") )
@@ -359,7 +419,7 @@ function restoreMain()
     $("#settingswindow").hide();
     $("#mainwindow").fadeIn();
 
-    updateUI( forecastprovider.current() );
+    updateUI( true );
 }
 
 function setupSettings()
@@ -391,11 +451,10 @@ function setupSettings()
     $("#settings-apply").click( function() {
 
         // Collect the new config values
-        config.unitTimezone = $("#settings-tzunit").val();
+        config.localTimezone = $("#settings-tzunit").val();
         config.units = $("#settings-units").val();
         config.timeLocale = $("#settings-locale").val();
-        config.forecastURL = $("#settings-url-forecast").val();
-        config.airQualityURL = $("#settings-url-waqi").val();
+        config.coordinates = $("#settings-coordinates").val();
 
         config.timezones = []; 
         
@@ -404,7 +463,7 @@ function setupSettings()
 
         saveSetting( "config", config );
         restoreMain();
-        forecastprovider.updateFromInternet();
+        forecastProvider.updateFromInternet();
     });
     
     // Handle UPDATE button
@@ -419,23 +478,23 @@ function showSettings()
         config.forecastUpdateURL = forecastUpdateURL;
             
     // Set the current configuration values
-    $("#settings-tzunit").selectize()[0].selectize.addItem( config.unitTimezone );
+    $("#settings-tzunit").selectize()[0].selectize.addItem( config.localTimezone );
     $("#settings-units").val( config.units );
     $("#settings-locale").val( config.timeLocale );
-    $("#settings-url-waqi").val( config.airQualityURL );
-    $("#settings-url-forecast").val( config.forecastURL );
+    $("#settings-coordinates").val( config.coordinates );
 
     for ( let l = 0; l < config.timezones.length; l++ )
         $("#settings-tzunit" + l ).selectize()[0].selectize.addItem( config.timezones[l] );
 
     $("#settingsmessage").text( "Version " + applicationVersion 
                                 + ", built: " + moment.unix( applicationBuiltEpoch ).format( 'LLLL')
-                                + ", " + forecastprovider.debugStatus()  );    
+                                + ", " + forecastProvider.debugStatus()  );    
     
     $("body").removeClass();
     $("#mainwindow").hide();
     $("#settingswindow").fadeIn();
 }
+
 
 function restoreBrightness()
 {
@@ -445,7 +504,7 @@ function restoreBrightness()
     
     brighnessTimeoutHandle = setTimeout( function() {
         cordova.plugins.brightness.setBrightness( brightnessIdleLevel, function(){}, function(){} );
-    }, brightnessKeepTime  );
+        }, brightnessKeepTime );
     
     cordova.plugins.brightness.setBrightness( 1, function(){}, function(){} );
     
@@ -460,15 +519,8 @@ function setup()
         window.powermanagement.acquire();
     
     // Load the configuration
-    loadSettings();
+    applySettings( window.localStorage.getItem( "config" ) );
 
-    // If we have forecastDefaultURL defined, and the default update URL is empty, override it
-    if ( config.forecastURL == "" && typeof forecastDefaultURL !== 'undefined' )
-        config.forecastURL = forecastDefaultURL;
-    
-    if ( config.airQualityURL == "" && typeof airQualityDetaultURL !== 'undefined' )
-        config.airQualityURL = airQualityDetaultURL;        
-    
     // Setup settings UI part
     setupSettings();
 
@@ -477,11 +529,11 @@ function setup()
 
     // Show settings page on click on settings button
     $("#button_settings").click( function() {
-        showSettings();
+            showSettings();
     });
 
     // Back button
-    document.addEventListener( "backbutton", function() { window.location = startURL; }, true );
+    document.addEventListener( "backbutton", function() { window.location = config.startURL; }, true );
     
     // Hide the red background on click on error message
     $("#statusmessage").click( function() {
@@ -495,7 +547,7 @@ function setup()
         else
         {
             console.log( "Forecast update: manual request" );
-            forecastprovider.updateFromInternet();
+            forecastProvider.triggerUpdate();
         }            
     });
     
@@ -509,12 +561,45 @@ function setup()
     // Handle click on weather hourly forecast
     $(".weather-hourly").click( function() {
         
-        dailyForecastHourlySpacing++;
+        config.forecastHourStep++;
         
-        if ( dailyForecastHourlySpacing > 4 )
-            dailyForecastHourlySpacing = 1;
-        
-        updateUI( storedForecast );
+        if ( config.forecastHourStep > 4 )
+            config.forecastHourStep = 1;
+
+        saveSetting();
+        updateUI( true );
+    });
+    
+    //
+    // This allows you to create an external configuration file, and apply it to all clocks
+    // at your home by holding the settings button for 2+ seconds
+    //   
+    $("#settings-remoteconfig").click(function(e) {
+
+        let url = prompt ("Enter the policy URL", "" );
+
+            if ( url != null )
+            {
+                $.ajax({
+                    method: "GET",
+                    url: url,
+                    dataType: "text"
+                })
+                .done( function( config ) {
+                    
+                    console.log("Downloaded config:", config );
+                    
+                    // Apply to config
+                    applySettings( config );
+                    
+                    // And fully reload
+                    window.location = config.startURL;
+                } )
+                .fail( function( err ) {
+                    
+                    alert("Failed to download or apply configuration", err );
+                } )                    
+            }
     });
     
     // Closing the modal dialog when clicked outside or close button
@@ -532,18 +617,20 @@ function setup()
         privateInit();
     
     // Setup the forecast updater
-    forecastprovider.intialize( function updated( error, forecast ) {
+    forecastProvider = new ForecastProvider();
+    
+    forecastProvider.intialize( function updated( error, forecast ) {
         
-        if ( error != null )
-        {
-            showError ( "wfc", error );
-        }
-        else
-        {
-            clearError( "wfc ");
-            updateUI( forecast );
-        }
-    });
+            if ( error != null )
+            {
+                showError ( "wfc", error );
+            }
+            else
+            {
+                clearError( "wfc ");
+                updateUI( true );
+            }
+        });
     
     // Extra functionality based on Cordova
     if ( typeof cordova != 'undefined' )
@@ -572,7 +659,7 @@ function setup()
 // and wait for the proper function.
 $(document).ready(function() {
 
-    startURL = document.URL;
+    config.startURL = document.URL;
     
     if ( document.URL.indexOf("http://") === 0 || document.URL.indexOf("https://") === 0 )
         setup(); // This is browser

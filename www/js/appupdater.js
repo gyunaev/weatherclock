@@ -1,17 +1,17 @@
 //
-// Self-updates the app, checking for the update periodically
+// Self-updates the app upon request
 
 var appupdater = {
  
     checkForUpdates : function()
     {
-        if ( typeof appUpdaterApkURL === 'undefined' )
+        if ( typeof config.appUpdaterApkURL === 'undefined' )
             return;
         
         var oReq = new XMLHttpRequest();
 
         // Make sure you add the domain name to the Content-Security-Policy <meta> element.
-        oReq.open( "GET", appUpdaterApkURL, true);
+        oReq.open( "GET", config.appUpdaterApkURL, true);
         
         // Define how you want the XHR data to come back
         oReq.responseType = "blob";
