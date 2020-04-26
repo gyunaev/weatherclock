@@ -125,6 +125,8 @@ class ForecastProvider
             if ( this.lastUpdateCurrent )
                 s.status + " updated: " + moment( this.lastUpdateCurrent ).fromNow();
         }
+        else if ( config.coordinates == "" )
+            s.status = "Coordinates not configured, no forecast / current information available";
         else
             s.status = "No current forecast";
             
@@ -349,6 +351,9 @@ class ForecastProvider
     
     async updateCurrent()
     {
+        if ( config.coordinates == "" )
+            return;
+        
         let getRegexpMatch = function( src, regex, error )
             {
                 let match = src.match( regex );

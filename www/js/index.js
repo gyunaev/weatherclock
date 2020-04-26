@@ -10,7 +10,7 @@ var config =
     localTimezone : "America/Los_Angeles",
 
     // Extra timezones to show times on screen (up to 4)
-    timezones: [ "Europe/Bucharest", "Asia/Ho_Chi_Min", "Asia/Tokyo", "Europe/London" ],
+    timezones: [],
 
     // Units to use: I[mprerial] or M[etric]
     units : "I",
@@ -256,7 +256,7 @@ function updateUI( redrawForecast )
     }
     
     // Do we need to redraw weather forecast?  
-    if ( redrawForecast )
+    if ( redrawForecast && forecastProvider.status().current )
     {
         let forecast = forecastProvider.status();
     
@@ -364,9 +364,11 @@ function updateUI( redrawForecast )
         $("#weather-block-daily").show();
         $("#weather-block-hourly").show();
     }
+    else
+        
     
     // Set the new status bar message
-    originalStatusMessage = forecastProvider.status().status;    
+    originalStatusMessage = forecastProvider.status().status;
     updateStatusBar();
 
     if ( $("#mainwindow").hasClass("d-none") )
@@ -463,7 +465,7 @@ function setupSettings()
 
         saveSetting( "config", config );
         restoreMain();
-        forecastProvider.updateFromInternet();
+        forecastProvider.triggerUpdate();
     });
     
     // Handle UPDATE button
@@ -503,8 +505,8 @@ function restoreBrightness()
         clearTimeout( brighnessTimeoutHandle );
     
     brighnessTimeoutHandle = setTimeout( function() {
-        cordova.plugins.brightness.setBrightness( brightnessIdleLevel, function(){}, function(){} );
-        }, brightnessKeepTime );
+        cordova.plugins.brightness.setBrightness( config.brightnessIdleLevel, function(){}, function(){} );
+        }, config.brightnessKeepTime );
     
     cordova.plugins.brightness.setBrightness( 1, function(){}, function(){} );
     
@@ -612,10 +614,6 @@ function setup()
         timeoutTimerHandle = null;
     });
 
-    // If private.js has privateInit function, call it
-    if ( typeof privateInit === 'function' )
-        privateInit();
-    
     // Setup the forecast updater
     forecastProvider = new ForecastProvider();
     
@@ -650,6 +648,10 @@ function setup()
         // Any click on body restores the brightness back
         $("body").click( restoreBrightness );
     }
+    
+    // If we don't have coordinates, pop the settings
+    if ( config.coordinates == "" )
+        setTimeout( showSettings, 0 );
 }
 
 //
