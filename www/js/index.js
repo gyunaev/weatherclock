@@ -54,6 +54,9 @@ var config =
     
     // Last entered remote config URL. It is NOT downloaded on every start, and only stored here to prefill the dialog
     lastRemoteConfigUrl : "",
+    
+    // Error handler URL for remote logging. If empty, remote logging is disabled
+    remoteLoggingURL : ""
 };
 
 
@@ -89,7 +92,7 @@ function applySettings( data )
         }
         catch ( ignored )
         { 
-            console.log( "failed to parse config"); 
+            console.log( "failed to parse config");
         }
     }
     
@@ -130,8 +133,6 @@ function showDetailedDialog( blockid )
     let id = 1 + m[1];
     let fdata = forecastProvider.status().combined.daily[ Number( m[1] ) ];
     
-    console.log( forecastProvider.status().combined.hourly );
-
     let wtime = moment( fdata.startTime );
     $(".daily-modal-date").text( wtime.format( "ddd MMM DD", config.timeLocale ) );
     $(".daily-modal-details").html( '<i class="' + fdata.faicon + '"></i> ' 
@@ -658,6 +659,28 @@ function setup()
         setTimeout( showSettings, 0 );
 }
 
+// Remote error logging
+function logRemoteError(message, url = "", lineNumber = "")
+{
+    if ( config.remoteLoggingURL.length )
+    {
+        // Use XMLHttpRequest in case jquery failed
+        var req = new XMLHttpRequest();
+        
+        req.open('POST', config.remoteLoggingURL, true);
+        req.setRequestHeader( 'Content-type', 'application/json' );
+        req.onload = function () {
+
+            console.log(this.responseText);
+        };
+
+        req.send( JSON.stringify( { d : new Date(), m : message, u : url, n : lineNumber } ) );
+    }
+    
+    console.log( message );
+}
+
+
 //
 // This one is fired both via localhost and via Cordova,
 // but for Cordova we have to wait for deviceready.
@@ -666,6 +689,9 @@ function setup()
 $(document).ready(function() {
 
     config.startURL = window.location.href;
+    
+    // Set up remote logging
+    window.onerror = logRemoteError;
     
     if ( document.URL.indexOf("http://") === 0 || document.URL.indexOf("https://") === 0 )
         setup(); // This is browser
