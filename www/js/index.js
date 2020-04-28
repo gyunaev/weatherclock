@@ -582,7 +582,7 @@ function setup()
     //   
     $("#settings-remoteconfig").click(function(e) {
 
-        let url = prompt ("Enter the policy URL", lastRemoteConfigUrl );
+        let url = prompt ("Enter the policy URL", config.lastRemoteConfigUrl );
 
             if ( url != null )
             {
@@ -591,17 +591,17 @@ function setup()
                     url: url,
                     dataType: "text"
                 })
-                .done( function( config ) {
+                .done( function( newconfig ) {
                     
-                    console.log("Downloaded config:", config );
+                    console.log("Downloaded config:", newconfig );
                     config.lastRemoteConfigUrl = url;
                     
                     // Apply to config
-                    applySettings( config );
+                    applySettings( newconfig );
                     
                     // And fully reload
                     window.location.reload();
-                } )
+                } ) 
                 .fail( function( err ) {
                     
                     alert("Failed to download or apply configuration", err );
