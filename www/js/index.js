@@ -45,12 +45,15 @@ var config =
     // URL + token to download the air quality forecast from. If null, AQ forecast is not downloaded
     forecastUrlAirQuality : null,
         
-    // URL to download the updated APKs from. If null, APK update is not supported
+    // URL to download the updated APKs from (when Update button is pressed in settings). If null, APK update is not supported
     appUpdaterApkURL : null,
 
     // UI modifications, if any, stored as JS code which runs on start. Can be used to customize the clock.
     // It is eval()ed, so beware. Could be either a string or array (in which case its joined \n)
-    uiModificationsJS : null
+    uiModificationsJS : null,
+    
+    // Last entered remote config URL. It is NOT downloaded on every start, and only stored here to prefill the dialog
+    lastRemoteConfigUrl : "",
 };
 
 
@@ -578,7 +581,7 @@ function setup()
     //   
     $("#settings-remoteconfig").click(function(e) {
 
-        let url = prompt ("Enter the policy URL", "" );
+        let url = prompt ("Enter the policy URL", lastRemoteConfigUrl );
 
             if ( url != null )
             {
@@ -590,6 +593,7 @@ function setup()
                 .done( function( config ) {
                     
                     console.log("Downloaded config:", config );
+                    config.lastRemoteConfigUrl = url;
                     
                     // Apply to config
                     applySettings( config );
