@@ -78,6 +78,7 @@ var errorMessages = [];
 // An original statusbar message (shown when no errors)
 var originalStatusMessage = "";
 
+
 function applySettings( data )
 {
     if ( typeof data !== 'undefined' && data != null )
@@ -122,6 +123,7 @@ function saveSetting( name, object )
         showError( "ls", "Failed to save new settings: local storage not available" );
     }
 }
+
 
 function showDetailedDialog( blockid )
 {
@@ -265,12 +267,13 @@ function updateUI( redrawForecast )
         let forecast = forecastProvider.status();
     
         // Do we need to replace background?
-        let bgclass = "body-bg-" + forecast.current.faicon.substr( 7 );
+        let bgclass = "body-bg-" + forecast.current.background;
         
         // Current details
         if ( !$("body").hasClass( bgclass ) )
         {
             $("body").removeClass();
+            $("body").addClass( "fadein" );
             $("body").addClass( bgclass );
         }
         
@@ -676,7 +679,7 @@ function logRemoteError(message, url = "", lineNumber = "")
 
         req.send( JSON.stringify( { d : new Date(), m : message, u : url, n : lineNumber } ) );
     }
-    
+
     console.log( message );
 }
 

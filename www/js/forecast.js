@@ -23,43 +23,45 @@ class ForecastProvider
         
         this.update_callback = null;
             
-        // Icon conversion to fontAwesome
+        // Icon conversion to fontAwesome and background image
         // If the icon name ends with - it means 'sun' or 'moon' will be appended (for day or night)
-        this.fontAwesomeIconMapping = {
-                "skc": "fa-",
-                "few": "fa-",
-                "sct": "fa-cloud-",
-                "bkn": "fa-cloud-",
-                "ovc": "fa-cloud",
-                "wind_skc": "fa-wind",
-                "wind_few": "fa-wind",
-                "wind_sct": "fa-wind",
-                "wind_bkn": "fa-wind",
-                "wind_ovc": "fa-wind",
-                "snow": "fa-snowflake",
-                "rain_snow": "fa-cloud-showers-heavy",
-                "rain_sleet": "fa-cloud-showers-heavy",
-                "snow_sleet": "fa-snowflake",
-                "fzra": "fa-cloud-showers-heavy",
-                "rain_fzra": "fa-snowflake",
-                "snow_fzra": "fa-snowflake",
-                "sleet": "fa-snowflake",
-                "rain": "fa-cloud-showers-heavy",
-                "rain_showers": "fa-cloud-showers-heavy",
-                "rain_showers_hi": "fa-cloud-showers-heavy",
-                "tsra": "fa-cloud-showers-heavy",
-                "tsra_sct": "fa-cloud-showers-heavy",
-                "tsra_hi": "fa-cloud-showers-heavy",
-                "tornado": "fa-wind",
-                "hurricane": "fa-wind",
-                "tropical_storm": "fa-water",
-                "dust": "fa-",
-                "smoke": "fa-",
-                "haze": "fa-",
-                "hot": "fa-",
-                "cold": "fa-",
-                "blizzard": "fa-snowflake",
-                "fog": "fa-water"
+        this.iconMapping = {
+                "skc": { fa : "fa-", bg : "clear-" },
+                "few": { fa : "fa-", bg : "clear-" },
+                "sct": { fa : "fa-cloud-", bg : "partly-cloudy-" },
+                "bkn": { fa : "fa-cloud-", bg : "partly-cloudy-" },
+                "ovc": { fa : "fa-cloud", bg : "cloudy" },
+                "nra": { fa : "fa-cloud-showers-heavy", bg : "rain", rain : true },
+                "dra": { fa : "fa-cloud-showers-heavy", bg : "rain", rain : true },
+                "wind_skc": { fa : "fa-wind", bg : "clear-" },
+                "wind_few": { fa : "fa-wind", bg : "clear-" },
+                "wind_sct": { fa : "fa-wind", bg : "partly-cloudy-" },
+                "wind_bkn": { fa : "fa-wind", bg : "partly-cloudy-" },
+                "wind_ovc": { fa : "fa-wind", bg : "cloudy" },
+                "snow": { fa : "fa-snowflake", bg : "snow" },
+                "rain_snow": { fa : "fa-cloud-showers-heavy", bg : "rain", rain : true },
+                "rain_sleet": { fa : "fa-cloud-showers-heavy", bg : "rain", rain : true },
+                "snow_sleet": { fa : "fa-snowflake", bg : "rain", rain : true },
+                "fzra": { fa : "fa-cloud-showers-heavy", bg : "rain", rain : true },
+                "rain_fzra": { fa : "fa-snowflake", bg : "rain", rain : true },
+                "snow_fzra": { fa : "fa-snowflake", bg : "rain", rain : true },
+                "sleet": { fa : "fa-snowflake", bg : "snow" },
+                "rain": { fa : "fa-cloud-showers-heavy", bg : "rain", rain : true },
+                "rain_showers": { fa : "fa-cloud-showers-heavy", bg : "rain", rain : true },
+                "rain_showers_hi": { fa : "fa-cloud-showers-heavy", bg : "rain", rain : true },
+                "tsra": { fa : "fa-cloud-showers-heavy", bg : "rain", rain : true },
+                "tsra_sct": { fa : "fa-cloud-showers-heavy", bg : "rain", rain : true },
+                "tsra_hi": { fa : "fa-cloud-showers-heavy", bg : "rain", rain : true },
+                "tornado": { fa : "fa-wind", bg : "cloudy" },
+                "hurricane": { fa : "fa-wind", bg : "cloudy" },
+                "tropical_storm": { fa : "fa-water", bg : "rain", rain : true },
+                "dust": { fa : "fa-", bg : "clear-" }, 
+                "smoke": { fa : "fa-", bg : "clear-" }, 
+                "haze": { fa : "fa-", bg : "clear-" },
+                "hot": { fa : "fa-", bg : "clear-" },
+                "cold": { fa : "fa-", bg : "snow" },
+                "blizzard": { fa : "fa-snowflake", bg : "snow" },
+                "fog": { fa : "fa-water", "bg" : "fog" }
             };
     }
     
@@ -84,6 +86,9 @@ class ForecastProvider
         
         // Run the worker asyncrhonously
         setTimeout( this._timerCallback.bind( this ), 0 );
+        
+        // And rerun it every minute
+        setInterval( this._timerCallback.bind( this ), 60000 );
     }
 
     // Main update callback taking care of everything
@@ -91,26 +96,27 @@ class ForecastProvider
     {
         // Is it time to update the grids?
         let now = new Date();
-        
+    
         if ( config.forecastNextRecheckTime == null || config.forecastNextRecheckTime < now )
             await this.resolveStations();
+    
+        let tasks = [];
         
         // Time to update next forecast?
         if ( this.nextForecastUpdate <= now )
-            await this.updateForecast();
-        
+            tasks.push( this.updateForecast() );
+    
         // Do we need AQI update?
         if ( this.nextAqiUpdate <= now )
-            await this.updateAQI();
-        
+            tasks.push( this.updateAQI() );
+    
         // We always update current forecast in this callback
-        await this.updateCurrent();
+        tasks.push( this.updateCurrent() );
         
+        await Promise.all( tasks );
+    
         // And notift the client without waiting
         this.update_callback( null );
-
-        // and here we go again
-        setTimeout( this._timerCallback.bind( this ), 60000 );
     }
 
     // Returns current forecast
@@ -205,27 +211,36 @@ class ForecastProvider
         return true;
     }
     
-    convertFAicon( icon )
+    parseFAicon( icon )
     {
-        // Create FA icon
-        if ( icon )
+        if ( icon == null )
+            return null;
+        
+        // https://api.weather.gov/icons/land/day/rain,30?size=small
+        let iconmatch = icon.match( /\/icons\/.*?\/(.*?)\/(.*?)(,.*)?\?/ );
+        
+        if ( !iconmatch )
         {
-            let iconmatch = icon.match( /\/icons\/.*?\/(.*?)\/(.*?)\?/ );
-
-            if ( iconmatch && this.fontAwesomeIconMapping[ iconmatch[2] ] !== undefined )
-            {
-                let faicon = this.fontAwesomeIconMapping[ iconmatch[2] ];
-                
-                if ( faicon.endsWith( '-' ) )
-                    faicon += iconmatch[1] == "night" ? 'moon' : 'sun';
-                
-                return "fas " + faicon;
-            }
+            logRemoteError( "Cannot parse icon " + icon  );
+            return null;
         }
         
-        return null;
+        if ( this.iconMapping[ iconmatch[2] ] === undefined )
+        {
+            logRemoteError( "Cannot find icon match for " + icon + ", match pattern " + iconmatch[2] );
+            return null;
+        }
+        
+        let faicon = this.iconMapping[ iconmatch[2] ].fa;
+        let israin = this.iconMapping[ iconmatch[2] ].rain ? this.iconMapping[ iconmatch[2] ].rain : false;
+        
+        // Auto-adjust for day-night using iconmatch[1]
+        if ( faicon.endsWith( '-' ) )
+            faicon += faicon[1] == "night" ? 'moon' : 'sun';
+        
+        return { fa : "fas " + faicon, rain : israin };
     }
-
+    
     async updateForecast()
     {
         if ( config.forecastUrlHourly == null && ! await this.resolveStations() )
@@ -254,7 +269,7 @@ class ForecastProvider
             // Did the day change? Init the structure
             if ( ts.getDay() != currentday )
             {
-                daily.push( { startTime : ts, descs : [], faicons : [], temperatureHigh : -1, temperatureLow : 9999, rainhours : 0, windSpeedLow : 9999, windSpeedHigh: 0, hourlyIndex : hourly.length } );
+                daily.push( { startTime : ts, descs : [], icons : [], temperatureHigh : -1, temperatureLow : 9999, rainhours : 0, windSpeedLow : 9999, windSpeedHigh: 0, hourlyIndex : hourly.length } );
                 currentday = ts.getUTCDay();
             }
             
@@ -264,7 +279,7 @@ class ForecastProvider
             if ( m != null )
                 h.windSpeed = m[1];
             
-            let faicon = this.convertFAicon( h.icon );
+            let icondata = this.parseFAicon( h.icon );
             
             // Store the hourly forecast
             hourly.push({
@@ -276,8 +291,8 @@ class ForecastProvider
                     windSpeed: h.windSpeed,
                     windDirection: h.windDirection,
                     icon: h.icon,
-                    shortForecast: h.shortForecast,
-                    faicon : faicon
+                    faicon : icondata.fa,
+                    shortForecast: h.shortForecast
                         });
 
             // Store some data in daily
@@ -292,13 +307,15 @@ class ForecastProvider
                 daily[ index ].temperatureLow = Math.min( daily[ index ].temperatureLow, h.temperature );
                 
                 // Store for future counting - we only count weather between 7am and 8pm
+                let faicon = this.parseFAicon( h.icon );
+                
                 if ( ts.getHours() > 6 && ts.getHours() < 21 )
                 {
                     daily[ index ].descs.push( h.shortForecast );
-                    daily[ index ].faicons.push( faicon );
+                    daily[ index ].icons.push( icondata.fa );
                 }
                 
-                if ( faicon == "fa-water" )
+                if ( icondata.rain )
                     daily[ index ].rainhours++;
             }
         }
@@ -312,8 +329,10 @@ class ForecastProvider
             h.summary = h.descs.sort( (a,b) => h.descs.filter(v => v===a).length - h.descs.filter(v => v===b).length ).pop();
             delete h.descs;
             
-            h.faicon = h.faicons.sort( (a,b) => h.faicons.filter(v => v===a).length - h.faicons.filter(v => v===b).length ).pop();
-            delete h.faicons;
+            h.icon = h.icons.sort( (a,b) => h.icons.filter(v => v===a).length - h.icons.filter(v => v===b).length ).pop();
+            delete h.icons;
+            
+            h.faicon = h.icon;
             
             // thanks Vladimir Agafonkin for a great library: https://github.com/mourner/suncalc/blob/master/suncalc.js
             h.suntimes = SunCalc.getTimes( new Date( h.startTime ), coords[0], coords[1] );
@@ -349,6 +368,32 @@ class ForecastProvider
         this.nextAqiUpdate = moment().add( 5, 'minutes' ).toDate();        
     }    
     
+    adjustForDaynight( icon, suntimes, day, night )
+    {
+        if ( !icon.endsWith( '-' ) )
+            return icon;
+            
+        let doesCSSexist = function( selector )
+                {
+                    let selc = "." + selector;
+                    for ( let st of document.styleSheets )
+                        for ( let s of st.rules )
+                            if ( s.cssText === selc )
+                                return true;
+                            
+                    return false;
+                };
+
+
+        let suffix = day;
+        let now = new Date();
+        
+        if ( now < suntimes.sunrise || now > suntimes.sunset )
+            suffix = night;
+        
+        return icon + suffix;            
+    }
+    
     async updateCurrent()
     {
         if ( config.coordinates == "" )
@@ -365,9 +410,10 @@ class ForecastProvider
             }
     
         // Current icon and text conditions
+        let coords = config.coordinates.split( ',' );
+
         try
         {
-            let coords = config.coordinates.split( ',' );
             let htmldata = await this._retrieve( `https://forecast.weather.gov/MapClick.php?lat=${ coords[0] }&lon=${ coords[1] }`, "html" );
             
             let result = { 
@@ -394,27 +440,38 @@ class ForecastProvider
                 result.windSpeed = 0;
             }
             
-            // Trim result.icon to match fa-
-            let testicon = result.icon;
+            // Trim result.icon
+            if ( result.icon.length == 4 )
+                result.icon = testicon.substr( 1 );
             
-            if ( testicon.length == 4 )
-                testicon = testicon.substr( 1 );
-        
-            if ( this.fontAwesomeIconMapping[ testicon ] === undefined )
+            // Map the icon to get the FA icon and background image
+            if ( this.iconMapping[ result.icon ] === undefined )
             {
-                console.log( "Error converting icon " + result.icon );
-                result.faicon = "fas fa-sun";
+                logRemoteError( "Cannot find icon match for " + result.icon );
+                result.faicon = "fa-";
+                result.background = "clear-";
+                result.israin = false;
             }
             else
             {
-                result.faicon = "fas " + this.fontAwesomeIconMapping[ testicon ];
+                result.faicon = this.iconMapping[ result.icon ].fa;
+                result.background = this.iconMapping[ result.icon ].bg;
                 
-                if ( result.faicon.endsWith( '-' ) )
-                    result.faicon += result.icon[0] == 'n' ? 'moon' : 'sun';
-            }                
+                if ( this.iconMapping[ result.icon ].rain !== undefined )
+                    result.israin = this.iconMapping[ result.icon ].rain;
+                else
+                    result.israin = false;
+            }
+
+            // Adjust the icon for day/night
+            let suntimes = SunCalc.getTimes( new Date(), coords[0], coords[1] );
+            
+            result.faicon = "fas " + this.adjustForDaynight( result.faicon, suntimes, "sun", "moon" );
+            result.background = this.adjustForDaynight( result.background, suntimes, "day", "night" );
 
             this.current = result;
             this.lastUpdateCurrent = new Date();
+            this.textStatus = "Current conditions data: " + result.updateTime;
             window.localStorage.setItem( "storedcurrent", JSON.stringify( this.current ) );
             console.log( "Current forecast updated " + result.updateTime );
         }
