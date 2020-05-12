@@ -93,7 +93,7 @@ var appupdater = {
             }
         };
         
-        appupdater.setMessage( "Downliading the APK file" );
+        appupdater.setMessage( "Downloading the APK file" );
         oReq.send(null);
     }
 };
