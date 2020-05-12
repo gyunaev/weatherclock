@@ -442,7 +442,7 @@ class ForecastProvider
             
             // Trim result.icon
             if ( result.icon.length == 4 )
-                result.icon = testicon.substr( 1 );
+                result.icon = result.icon.substr( 1 );
             
             // Map the icon to get the FA icon and background image
             if ( this.iconMapping[ result.icon ] === undefined )
