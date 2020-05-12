@@ -72,6 +72,7 @@ var appupdater = {
                                 appupdater.setMessage( "Failed to save the APK: " + e.toString(), true );
                             };
 
+                            appupdater.setMessage( "Writing the APK file to the SD card", true );
                             fileWriter.write(blob);
                         },
                         function error(e) { 
@@ -92,6 +93,7 @@ var appupdater = {
             }
         };
         
+        appupdater.setMessage( "Downliading the APK file" );
         oReq.send(null);
     }
 };
