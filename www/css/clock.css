@@ -21,6 +21,7 @@ body {
     background-position: center center;
     background-size: cover;
     color: black;
+    transition: background 1s ease-in-out;
 }
 
 .startup-message {
@@ -31,25 +32,26 @@ body {
     font-size: 250%;
 }
 
-.body-bg-sun {
+
+.body-bg-clear-day {
     background-image: url( '../images/weather_clear_day.jpg' );
 }
 
-.body-bg-moon {
+.body-bg-clear-night {
     background-image: url( '../images/weather_clear_night.jpg' );
     color: white;
 }
 
-.body-bg-cloud-sun {
+.body-bg-partly-cloudy-day {
     background-image: url( '../images/weather_partly_cloudy_day.jpg' );
 }
 
-.body-bg-cloud-moon {
+.body-bg-partly-cloudy-night {
     background-image: url( '../images/weather_partly_cloudy_night.jpg' );
     color: white;
 }
 
-.body-bg-cloud {
+.body-bg-cloudy {
     background-image: url( '../images/weather_cloudy.jpg' );
 }
 
@@ -61,25 +63,8 @@ body {
     background-image: url( '../images/weather_hail.jpg' );
 }
 
-.body-bg-partly-cloudy-sun {
-    background-image: url( '../images/weather_partly_cloudy_day.jpg' );
-}
-
-.body-bg-partly-cloudy-moon {
-    background-image: url( '../images/weather_partly_cloudy_night.jpg' );
-    color: white;
-}
-
 .body-bg-rain {
     background-image: url( '../images/weather_rain.jpg' );
-}
-
-.body-bg-thunderstorm {
-    background-image: url( '../images/weather_rain.jpg' );
-}
-
-.body-bg-sleet {
-    background-image: url( '../images/weather_sleet.jpg' );
 }
 
 .body-bg-snow {
@@ -264,23 +249,6 @@ body {
     font-size: 50%;
     color: rgb( 64, 64, 64);
     padding-bottom: 0.25em;
-}
-
-
-.weather-daily-temp-awfulhot {
-    background-color: #ff3300;
-}
-
-.weather-daily-temp-veryhot {
-    background-color: #ff8655;
-}
-
-.weather-daily-temp-hot {
-    background-color: #ffd6cc;
-}
-
-.weather-daily-temp-cold {
-    background-color: #99ffff;
 }
 
 .weather-daily-rain {
