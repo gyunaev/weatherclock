@@ -47,6 +47,7 @@ class ForecastProvider
                 "snow_fzra": { fa : "fa-snowflake", bg : "rain", rain : true },
                 "sleet": { fa : "fa-snowflake", bg : "snow" },
                 "rain": { fa : "fa-cloud-showers-heavy", bg : "rain", rain : true },
+                "ra": { fa : "fa-cloud-showers-heavy", bg : "rain", rain : true },
                 "rain_showers": { fa : "fa-cloud-showers-heavy", bg : "rain", rain : true },
                 "rain_showers_hi": { fa : "fa-cloud-showers-heavy", bg : "rain", rain : true },
                 "tsra": { fa : "fa-cloud-showers-heavy", bg : "rain", rain : true },
