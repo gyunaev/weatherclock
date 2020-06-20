@@ -162,9 +162,10 @@ function showDetailedDialog( blockid )
     let wtime = moment( fdata.startTime );
     $(".daily-modal-date").text( wtime.format( "ddd MMM DD", config.timeLocale ) );
     $(".daily-modal-details").html( '<i class="' + fdata.faicon + '"></i> ' 
-                    + convertUnit( fdata.temperatureLow, "temperature" ) 
+                    + convertUnit( fdata.temperatureLow, "temperature" ) + ' (' + convertUnit( fdata.temperatureLow, "temperature", 'G' ) + ")"
                     + " / "
-                    + convertUnit( fdata.temperatureHigh, "temperature" ) + "</span>" );
+                    + convertUnit( fdata.temperatureHigh, "temperature" ) + ' (' + convertUnit( fdata.temperatureHigh, "temperature", 'G' ) + ")"
+                    + "</span>" );
     
     let outsummary = fdata.summary + ", wind " + fdata.windSpeedLow + "-"  + fdata.windSpeedHigh + " mph";
     
