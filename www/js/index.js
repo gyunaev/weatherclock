@@ -378,7 +378,7 @@ function updateUI( redrawForecast )
         
         for ( let i = 0; i < 6; i++ )
         {
-            let fdata = forecast.combined.hourly[ i * hourstep + 1 ];
+            let fdata = forecast.combined.hourly[ i * hourstep ];
             let wtime = moment.utc( fdata.startTime ).tz( config.localTimezone );
 
             $("#weather-cur-time-" + i ).html( wtime.format( "LT", config.timeLocale ) + appendIfNextDay( wtime ) );

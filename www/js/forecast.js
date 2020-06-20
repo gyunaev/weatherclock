@@ -261,11 +261,16 @@ class ForecastProvider
         // Will have the forecast combined by days, together with extra info
         let hourly = [];
         let daily = [];
+        let now = new Date();
         let currentday = new Date().getDay();
         
         for ( let h of hourlydata.properties.periods )
         {
             let ts = new Date( h.startTime );
+            
+            // Ignore if already in the past
+            if ( ts < now )
+                continue;
 
             // Did the day change? Init the structure
             if ( ts.getDay() != currentday )
