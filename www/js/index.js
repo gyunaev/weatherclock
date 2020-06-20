@@ -31,6 +31,31 @@ var config =
     brightnessKeepTime : 10000,
     brightnessIdleLevel : 0.1,
 
+    tempColors : {
+        
+        cold : {
+            
+            tempLow : 33,
+            colorLow: [ 0, 195, 255 ],
+            
+            tempHigh : 63,
+            colorHigh: [ 230, 249, 255 ],
+            
+        },
+        
+        hot: {
+            
+            tempLow : 78,
+            colorLow: [ 255, 230, 230 ],
+
+            tempHigh : 100,
+            colorHigh: [ 255, 0, 0 ],
+        },
+        
+        normalColor : [ 224, 224, 224 ],
+
+    },
+    
     //
     // For weather forecast
     //
@@ -123,7 +148,6 @@ function saveSetting( name, object )
         showError( "ls", "Failed to save new settings: local storage not available" );
     }
 }
-
 
 function showDetailedDialog( blockid )
 {
@@ -227,6 +251,48 @@ function convertUnit( value, unit, useunits )
     
     return "ERROR";
 }
+
+function calculateTempColor( temp )
+{
+    let colors = config.tempColors;
+    
+    // First those cases where we don't need to approximate anything
+    if ( temp <= colors.cold.tempLow )
+        return colors.cold.colorLow;
+    else if ( temp >= colors.cold.tempHigh && temp <= colors.hot.tempLow )
+        return colors.normalColor;
+    else if ( temp >= colors.hot.tempHigh )
+        return colors.hot.colorHigh;
+    
+    let approx;
+    
+    if ( temp >= colors.hot.tempLow )
+        approx = colors.hot;
+    else
+        approx = colors.cold;
+    
+    // Now approximate the colors.
+    let resultColor = [];
+    
+    // First calculate the fraction in change from low to high
+    let fraction = (temp - approx.tempLow) / (approx.tempHigh - approx.tempLow);
+    
+    // Now iterate over colors and adjust them
+    for ( let c = 0; c < 3; c++ )
+    {
+        let f1 = approx.colorLow[ c ];
+        let f2 = approx.colorHigh[ c ];
+        
+        
+        if ( f1 > f2 )
+            resultColor.push( f1 + Math.floor( ( f2 - f1 ) * fraction ) );
+        else
+            resultColor.push( f2 + Math.floor( ( f1 - f2 ) * (1.0 - fraction ) ) );
+    }
+    
+    return resultColor;
+}
+
 
 function updateUI( redrawForecast )
 {
@@ -348,23 +414,10 @@ function updateUI( redrawForecast )
 
             $("#weather-next-sunrise-" + i).text( moment( fdata.suntimes.sunrise ).tz( config.localTimezone ).format( 'LT', config.timeLocale ) );
             $("#weather-next-sunset-" + i).text( moment( fdata.suntimes.sunset ).tz( config.localTimezone ).format( 'LT', config.timeLocale ) );
-            
-            // Remove all weather-daily-temp- classes
-            for ( let c of [ "weather-daily-temp-cold", "weather-daily-temp-awfulhot", "weather-daily-temp-veryhot", "weather-daily-temp-hot", "weather-daily-rain" ] )
-                $("#weather-daily-" + i).removeClass ( c );
 
-            // And add the one depending on temperature
-            if ( fdata.precipProbability > 40 )
-                $("#weather-daily-" + i).addClass( "weather-daily-rain" );
+            let dailycolor = calculateTempColor( fdata.temperatureHigh );
             
-            if ( fdata.temperatureHigh < 65 )
-                $("#weather-daily-" + i).addClass( "weather-daily-temp-cold" );
-            else if ( fdata.temperatureHigh > 90 )
-                $("#weather-daily-" + i).addClass( "weather-daily-temp-awfulhot" );                        
-            else if ( fdata.temperatureHigh > 85 )
-                $("#weather-daily-" + i).addClass( "weather-daily-temp-veryhot" );            
-            else if ( fdata.temperatureHigh > 78 )
-                $("#weather-daily-" + i).addClass( "weather-daily-temp-hot" );
+            $("#weather-daily-" + i).css('background-color', `rgb( ${dailycolor[0]}, ${dailycolor[1]}, ${dailycolor[2]} )` );
         }
 
         // Make the blocks visible
