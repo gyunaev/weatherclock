@@ -424,7 +424,6 @@ class ForecastProvider
             
             let result = { 
                 ts : new Date(),
-                icon : getRegexpMatch( htmldata, /<div id="current_conditions-summary" class="pull-left" >\s+<img src="newimages\/large\/(.*?)\.png"/, "icon" ),
                 summary : getRegexpMatch( htmldata, /<p class="myforecast-current">(.*?)<\/p>/, "summary" ),
                 temperature : getRegexpMatch( htmldata, /<p class="myforecast-current-lrg">(\d+)&deg;F<\/p>/, "temperature" ),
                 wind : getRegexpMatch( htmldata, /Wind Speed<\/b><\/td>\s*<td>(.*?)<\/td>/, "wind" ),
@@ -432,6 +431,14 @@ class ForecastProvider
                 relativeHumidity : getRegexpMatch( htmldata, /Humidity<\/b><\/td>\s+<td>(\d+)%<\/td>/, "humidity" ),
                 updateTime : getRegexpMatch( htmldata, /Last update<\/b><\/td>\s*<td>\s*(.*?)\s*<\/td>/, "uptime" )
             };
+            
+            // Do we have an icon?
+            let iconmatch = htmldata.match( /<div id="current_conditions-summary" class="pull-left" >\s+<img src="newimages\/large\/(.*?)\.png"/ );
+            
+            if ( iconmatch )
+                result.icon = iconmatch[1];
+            else
+                result.icon = "skc";
         
             // Parse wind speed and direction
             let match = result.wind.match( /^(\w+)\s+(\d+)\s*MPH/ );
