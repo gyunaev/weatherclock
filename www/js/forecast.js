@@ -158,9 +158,6 @@ class ForecastProvider
         return new Promise( function(resolve, reject) {
             $.ajax({
                 method: "GET",
-                beforeSend: function(request) {
-                    request.setRequestHeader( "User-Agent", "ba60466c-384e-4714-8626-4af5eb19fb8b" );
-                },
                 url: url,
                 dataType: datatype
             })
@@ -215,7 +212,7 @@ class ForecastProvider
     parseFAicon( icon )
     {
         if ( icon == null )
-            return null;
+            return { fa : "fas fa-sun", background : "clear-day", rain : false };
         
         // https://api.weather.gov/icons/land/day/rain,30?size=small
         let iconmatch = icon.match( /\/icons\/.*?\/(.*?)\/(.*?)(,.*)?\?/ );
@@ -223,13 +220,13 @@ class ForecastProvider
         if ( !iconmatch )
         {
             logRemoteError( "Cannot parse icon " + icon  );
-            return null;
+            return { fa : "fas fa-sun", background : "clear-day", rain : false };
         }
         
         if ( this.iconMapping[ iconmatch[2] ] === undefined )
         {
-            logRemoteError( "Cannot find icon match for " + icon + ", match pattern " + iconmatch[2] );
-            return null;
+            logRemoteError( "parseFAicon: cannot find icon match for '" + icon + "', match pattern " + iconmatch[2] );
+            return { fa : "fas fa-sun", background : "clear-day", rain : false };
         }
         
         let faicon = this.iconMapping[ iconmatch[2] ].fa;
@@ -248,8 +245,18 @@ class ForecastProvider
             return;
         
         console.log( "Updating the weather forecast" );
+        let hourlydata;
 
-        let hourlydata = await this._retrieve( config.forecastUrlHourly );
+        try
+        {
+            hourlydata = await this._retrieve( config.forecastUrlHourly );
+        }
+        catch ( err )
+        {
+            console.log( "error: incorrect data returned by /forecast/ API" );
+            this.textStatus = "Forecast update failed";
+            return;
+        }
         
         if ( hourlydata.properties === undefined || hourlydata.properties.periods === undefined )
         {
@@ -361,17 +368,18 @@ class ForecastProvider
         if ( config.forecastUrlAirQuality == null )
             return;
             
-        let aquidata = await this._retrieve( config.forecastUrlAirQuality );
+        let aquidata = await this._retrieve( config.forecastUrlAirQuality  + "?_=" + new Date().getTime() );
         
         if ( aquidata.data === undefined || aquidata.data.aqi === undefined )
         {
+            logRemoteError( "AQI update failed" );
             this.textStatus = "AQI update failed";
             this.airquality = "N/A";
         }
         else
             this.airquality = aquidata.data.aqi;
         
-        this.nextAqiUpdate = moment().add( 5, 'minutes' ).toDate();        
+        this.nextAqiUpdate = moment().add( 1, 'minutes' ).toDate();        
     }    
     
     adjustForDaynight( icon, suntimes, day, night )
@@ -405,12 +413,15 @@ class ForecastProvider
         if ( config.coordinates == "" )
             return;
         
-        let getRegexpMatch = function( src, regex, error )
+        let getRegexpMatch = function( src, regex, error, defvalue )
             {
                 let match = src.match( regex );
         
                 if ( !match )
-                    throw( error );
+                {
+                    logRemoteError( "getRegexpMatch: failed to get " + error + " in " + src );
+                    return defvalue;
+                }
         
                 return match[1];
             }
@@ -424,12 +435,12 @@ class ForecastProvider
             
             let result = { 
                 ts : new Date(),
-                summary : getRegexpMatch( htmldata, /<p class="myforecast-current">(.*?)<\/p>/, "summary" ),
-                temperature : getRegexpMatch( htmldata, /<p class="myforecast-current-lrg">(\d+)&deg;F<\/p>/, "temperature" ),
-                wind : getRegexpMatch( htmldata, /Wind Speed<\/b><\/td>\s*<td>(.*?)<\/td>/, "wind" ),
-                barometricPressure : getRegexpMatch( htmldata, /Barometer<\/b><\/td>\s*<td>(.*?) in/, "pressure" ),
-                relativeHumidity : getRegexpMatch( htmldata, /Humidity<\/b><\/td>\s+<td>(\d+)%<\/td>/, "humidity" ),
-                updateTime : getRegexpMatch( htmldata, /Last update<\/b><\/td>\s*<td>\s*(.*?)\s*<\/td>/, "uptime" )
+                summary : getRegexpMatch( htmldata, /<p class="myforecast-current">(.*?)<\/p>/, "summary", "error" ),
+                temperature : getRegexpMatch( htmldata, /<p class="myforecast-current-lrg">(\d+)&deg;F<\/p>/, "temperature", "--" ),
+                wind : getRegexpMatch( htmldata, /Wind Speed<\/b><\/td>\s*<td>(.*?)<\/td>/, "wind", "--" ),
+                barometricPressure : getRegexpMatch( htmldata, /Barometer<\/b><\/td>\s*<td>(.*?) in/, "pressure", "--" ),
+                relativeHumidity : getRegexpMatch( htmldata, /Humidity<\/b><\/td>\s+<td>(\d+)%<\/td>/, "humidity", "--" ),
+                updateTime : getRegexpMatch( htmldata, /Last update<\/b><\/td>\s*<td>\s*(.*?)\s*<\/td>/, "uptime", "--" )
             };
             
             // Do we have an icon?
@@ -460,7 +471,7 @@ class ForecastProvider
             // Map the icon to get the FA icon and background image
             if ( this.iconMapping[ result.icon ] === undefined )
             {
-                logRemoteError( "Cannot find icon match for " + result.icon );
+                logRemoteError( "updateCurrent: cannot find icon match for " + result.icon );
                 result.faicon = "fa-";
                 result.background = "clear-";
                 result.israin = false;
@@ -484,7 +495,12 @@ class ForecastProvider
 
             this.current = result;
             this.lastUpdateCurrent = new Date();
-            this.textStatus = "Current conditions data: " + result.updateTime;
+            
+            if ( await this.updateLocalConditions() )
+                this.textStatus = "Current + local conditions data: " + result.updateTime;
+            else
+                this.textStatus = "Current conditions data: " + result.updateTime;
+            
             window.localStorage.setItem( "storedcurrent", JSON.stringify( this.current ) );
             console.log( "Current forecast updated " + result.updateTime );
         }
@@ -513,5 +529,31 @@ class ForecastProvider
         
         return null;
     }
-    
+  
+    async updateLocalConditions()
+    {
+        if ( config.forecastLocalConditionsURL == "" )
+            return;
+        
+        try
+        {
+            let jsondata = await this._retrieve( config.forecastLocalConditionsURL + "?_=" + new Date().getTime() );
+            
+            if ( typeof jsondata == "string" )
+                jsondata = JSON.parse( jsondata );
+            
+            for ( let e of Object.keys( this.current ) )
+                if ( typeof jsondata[e] !== "undefined" )
+                    this.current[e] = jsondata[e]
+                    
+            console.log( "Local conditions updated" );
+            return true;
+        }
+        catch ( err )
+        {
+            console.log( "Failed to update local conditions: " + err + " while parsing local conditions" );
+        }
+        
+        return false;
+    }  
 };

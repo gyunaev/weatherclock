@@ -62,7 +62,12 @@ var config =
 
     // Stores the URL to update the hourly forecast from
     forecastUrlHourly : null,
-        
+
+    // URL to download current forecast conditions from a local weather station.
+    // If defined, the data is downloaded after the weather.gov data and overwrites
+    // the values present there. See updateLocalConditions()
+    forecastLocalConditionsURL : null,
+    
     // Unix time when the above URLs need to be rechecked again, or "never" to stick to the above URLs.
     // see forecast.js for more details
     forecastNextRecheckTime : null,
@@ -239,7 +244,7 @@ function convertUnit( value, unit, useunits )
     if ( unit == 'pressure' )
     {
         //FIXME
-        return value + "<span class='smallerfont'>inHg</span>";
+        return Number.parseFloat(value).toFixed(2) + "<span class='smallerfont'>inHg</span>";
     }    
 
     if ( unit == 'speed' )
@@ -377,8 +382,27 @@ function updateUI( redrawForecast )
         let today_sunset = moment( forecast.combined.suntimes.sunset ).tz( config.localTimezone ).hour();
         let today_sunrise = moment( forecast.combined.suntimes.sunrise ).tz( config.localTimezone ).hour();
         
+        // Find the base hour
+        let basehour = 0;
+        while ( basehour < forecast.combined.hourly.length )
+        {
+            if ( moment.utc( forecast.combined.hourly[basehour].startTime ).tz( config.localTimezone ).isAfter( now ) )
+                break;
+            
+            basehour++;
+        }
+        
         for ( let i = 0; i < 6; i++ )
         {
+            // If we ran out, skip this one
+            if ( basehour + i * hourstep >= forecast.combined.hourly.length )
+            {
+                $("#weather-cur-time-" + i ).html( "XX:XX" );
+                $("#weather-cur-sum-" + i ).text( "n/a" );
+                $("#weather-cur-details-" + i).html( "n/a" );
+                continue;
+            }
+            
             let fdata = forecast.combined.hourly[ i * hourstep ];
             let wtime = moment.utc( fdata.startTime ).tz( config.localTimezone );
 
@@ -400,10 +424,28 @@ function updateUI( redrawForecast )
             }
         }
         
+        // Find the base day
+        let baseday = 0;
+        while ( baseday < forecast.combined.daily.length )
+        {
+            if ( moment.utc( forecast.combined.daily[baseday].startTime ).tz( config.localTimezone ).isAfter( now ) )
+                break;
+            
+            baseday++;
+        }
+
         // Future forecast
         for ( let i = 0; i < Math.min( forecast.combined.daily.length, 6 ); i++ )
         {
-            let fdata = forecast.combined.daily[ i ];
+            if ( baseday + i >= forecast.combined.daily.length )
+            {
+                $("#weather-next-date-" + i ).text( "Missing" );
+                $("#weather-next-sum-" + i ).text( "Not available" );
+                $("#weather-next-details-" + i).html( "N/A" ); 
+                continue;
+            }
+                
+            let fdata = forecast.combined.daily[ baseday + i ];
 
             let wtime = moment( fdata.startTime );
             $("#weather-next-date-" + i ).text( wtime.format( "ddd MMM DD", config.timeLocale ) );
