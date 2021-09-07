@@ -403,7 +403,7 @@ function updateUI( redrawForecast )
                 continue;
             }
             
-            let fdata = forecast.combined.hourly[ i * hourstep ];
+            let fdata = forecast.combined.hourly[ basehour + i * hourstep ];
             let wtime = moment.utc( fdata.startTime ).tz( config.localTimezone );
 
             $("#weather-cur-time-" + i ).html( wtime.format( "LT", config.timeLocale ) + appendIfNextDay( wtime ) );
@@ -721,18 +721,25 @@ function setup()
     // Setup the forecast updater
     forecastProvider = new ForecastProvider();
     
-    forecastProvider.intialize( function updated( error, forecast ) {
+    forecastProvider.intialize( { 
+            fetch : fetch,
+            callback : ( error, forecast ) => {
         
-            if ( error != null )
-            {
-                showError ( "wfc", error );
-            }
-            else
-            {
-                clearError( "wfc ");
-                updateUI( true );
-            }
-        });
+                if ( error != null )
+                {
+                    showError ( "wfc", error );
+                }
+                else
+                {
+                    clearError( "wfc ");
+                    updateUI( true );
+                }
+            },
+            
+            coordinates : config.coordinates,
+            forecastUrlAirQuality : config.forecastUrlAirQuality,
+            forecastLocalConditionsURL : config.forecastLocalConditionsURL
+    } );
     
     // Extra functionality based on Cordova
     if ( typeof cordova != 'undefined' )
