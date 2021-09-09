@@ -492,3 +492,11 @@ label {
     height: 1em;
     border-radius: 20px;
 }
+
+.tempwarmer {
+    color: rgb( 255, 40, 40 );
+}
+
+.tempcooler {
+    color: rgb( 40, 40, 255 );    
+}

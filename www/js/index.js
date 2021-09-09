@@ -236,9 +236,9 @@ function convertUnit( value, unit, useunits )
     if ( unit == 'temperature' )
     {
         if ( useunits == "I" )
-            return Math.round( value ) + "&#8457";
+            return Math.round(value) + "&#8457";
         else
-            return Math.round( (value - 32) / 1.8 ) + "&#8451";
+            return Math.round( (Number(value) - 32) * 5 / 9 ) + "&#8451";
     }
     
     if ( unit == 'pressure' )
@@ -350,25 +350,30 @@ function updateUI( redrawForecast )
         }
         
         let outtemp = "";
-        let temperature = forecast.current.temperature;
+        let temperature = Math.round( forecast.current.temperature );
 
         if ( forecast.airquality !== null )
             outtemp += forecast.airquality + "<span class='smallfont'>ppm2</span> ";
-        
-        outtemp += '<i class="' + forecast.current.faicon + '"></i> ' + convertUnit( temperature, "temperature", 'I' )
-            + '<span class="smallerfont"> (' + convertUnit( temperature, "temperature", 'G' ) + ")</span>";
-        
+
         // Last temperature trend
+        let temptrendclass = "";
+        
         if ( lastTemperature !== null )
         {
             if ( lastTemperature < temperature )
-                outtemp += '<i style="transform: rotate(45deg);" class="fas fa-arrow-up"></i>';
-            if ( lastTemperature > temperature )
-                outtemp += '<i style="transform: rotate(135deg);" class="fas fa-arrow-up"></i>';
+                temptrendclass = "tempwarmer ";
+            else
+                temptrendclass = "tempcooler ";
         }
         
         lastTemperature = temperature;
-            
+        
+        outtemp += '<i class="' + forecast.current.faicon + '"></i> <span class="' + temptrendclass + '">' + convertUnit( temperature, "temperature", 'I' ) + "</span>"
+            + '<span class="smallerfont"> (' + convertUnit( forecast.current.temperature, "temperature", 'G' ) + ")</span>";
+        
+        // Wind direction
+        outtemp += '<i style="transform: rotate(' + forecast.current.windDirection + 'deg);" class="fas fa-arrow-up"></i>';
+        
         $("#nowtemp").html( outtemp );
         
         // Create description string
@@ -451,7 +456,7 @@ function updateUI( redrawForecast )
             $("#weather-next-date-" + i ).text( wtime.format( "ddd MMM DD", config.timeLocale ) );
             $("#weather-next-sum-" + i ).text( fdata.summary );
             $("#weather-next-details-" + i).html( '<i class="' + fdata.faicon + '"></i> ' 
-                    + convertUnit( fdata.temperatureLow, "temperature" ) 
+                    + convertUnit( fdata.temperatureLow, "temperature" )
                     + " / "
                     + convertUnit( fdata.temperatureHigh, "temperature" ) );
 

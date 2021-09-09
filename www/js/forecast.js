@@ -65,6 +65,25 @@ class ForecastProvider
                 "blizzard": { fa : "fa-snowflake", bg : "snow" },
                 "fog": { fa : "fa-water", "bg" : "fog" }
             };
+            
+        this.windDirectionMapping = {
+            "N" : 0,
+            "NNE" : 22,
+            "NE" : 45,
+            "ENE" : 67,
+            "E" : 90,
+            "ESE" : 112,
+            "SE" : 135,
+            "SSE" : 157,
+            "S" : 180,
+            "SSW" : 202,
+            "SW" : 225,
+            "WSW" : 247,
+            "W" : 270,
+            "WNW" : 292,
+            "NW" : 315,
+            "NNW" : 337.5
+        };
     }
     
     // returns epoch time
@@ -297,7 +316,7 @@ class ForecastProvider
                     summary : h.shortForecast,
                     temperature : h.temperature,
                     windSpeed: h.windSpeed,
-                    windDirection: h.windDirection,
+                    windDirection: this.windDirectionMapping[ h.windDirection ],
                     barometricPressure : "---",
                     relativeHumidity : "---"
                 };
@@ -336,7 +355,7 @@ class ForecastProvider
                     temperature : h.temperature,
                     temperatureUnit : h.temperatureUnit,
                     windSpeed: h.windSpeed,
-                    windDirection: h.windDirection,
+                    windDirection: this.windDirectionMapping[ h.windDirection ],
                     faicon : icondata.fa,
                     shortForecast: h.shortForecast
             });
