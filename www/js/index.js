@@ -97,9 +97,6 @@ var timeoutTimerHandle = null, brighnessTimeoutHandle = null;
 // Forecast provider
 var forecastProvider = null;
 
-// Last seen temperature (to track changes)
-var lastTemperature = null;
-
 // Error stack with messages received. The new messages come on top.
 // Each message is an object with type and msg properties.
 // Errors of the same type replace each other, meaning they don't accumulate.
@@ -355,20 +352,7 @@ function updateUI( redrawForecast )
         if ( forecast.airquality !== null )
             outtemp += forecast.airquality + "<span class='smallfont'>ppm2</span> ";
 
-        // Last temperature trend
-        let temptrendclass = "";
-        
-        if ( lastTemperature !== null )
-        {
-            if ( lastTemperature < temperature )
-                temptrendclass = "tempwarmer ";
-            else
-                temptrendclass = "tempcooler ";
-        }
-        
-        lastTemperature = temperature;
-        
-        outtemp += '<i class="' + forecast.current.faicon + '"></i> <span class="' + temptrendclass + '">' + convertUnit( temperature, "temperature", 'I' ) + "</span>"
+        outtemp += '<i class="' + forecast.current.faicon + '"></i> ' + convertUnit( temperature, "temperature", 'I' )
             + '<span class="smallerfont"> (' + convertUnit( forecast.current.temperature, "temperature", 'G' ) + ")</span>";
         
         // Wind direction
