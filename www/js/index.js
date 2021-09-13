@@ -105,6 +105,7 @@ var errorMessages = [];
 // An original statusbar message (shown when no errors)
 var originalStatusMessage = "";
 
+var screenDarkened = false;
 
 function applySettings( data )
 {
@@ -186,7 +187,7 @@ function showDetailedDialog( blockid )
     for ( let i = 0; i < 6; i++ )
     {
         // We start from 6am and covering until midnight (every 3 hours
-        let hdata = forecastProvider.status().combined.hourly[ i * 3 + 6 + fdata.hourlyIndex ];
+        let hdata = hourlydata[ i * 3 + 6 + fdata.hourlyIndex ];
         let wtime = moment.utc( hdata.startTime ).tz( config.localTimezone );
 
         $("#daily-modal-cur-time-" + i ).html( wtime.format( "LT", config.timeLocale ) );
@@ -300,7 +301,7 @@ function calculateTempColor( temp )
 function updateUI( redrawForecast )
 {
     // If settings UI is visible, do not update the UI
-    if ( $("#settingswindow").is(":visible") )
+    if ( screenDarkened == true || $("#settingswindow").is(":visible") )
         return;
     
     // If splash screen is visible, hide it and show main window
@@ -592,6 +593,15 @@ function showSettings()
 
 function restoreBrightness()
 {
+    // Restore the screen if darkened
+    if ( screenDarkened )
+    {
+        screenDarkened = false;
+        $("body").removeClass();
+        $("#mainwindow").fadeIn();
+        updateUI( true );        
+    }
+    
     // Restart the inactivity timer if its already started
     if ( brighnessTimeoutHandle != null )
         clearTimeout( brighnessTimeoutHandle );
@@ -604,6 +614,29 @@ function restoreBrightness()
     
     // Activate the immersive mode again
     AndroidFullScreen.immersiveMode( function(){}, function(){} );    
+}
+
+function triggerZeroBrightness()
+{
+    if ( screenDarkened )
+        return;
+    
+    // Darken the screen with a delay since restoreBrightness may or may not be called before/after us
+    setTimeout( function() {
+            if ( brighnessTimeoutHandle != null )
+            {
+                clearTimeout( brighnessTimeoutHandle );
+                brighnessTimeoutHandle = null;
+            }
+            
+            cordova.plugins.brightness.setBrightness( 0, function(){}, function(){} );
+            $("#mainwindow").hide();
+            $("body").removeClass();
+            $("body").addClass("fulldark");
+            
+            screenDarkened = true;
+            
+        }, 1000 );    
 }
 
 function setup()
@@ -624,6 +657,10 @@ function setup()
     // Show settings page on click on settings button
     $("#button_settings").click( function() {
             showSettings();
+    });
+    
+    $("#button_brightness").click( function() {
+            triggerZeroBrightness();
     });
 
     // Back button
@@ -711,7 +748,7 @@ function setup()
     forecastProvider = new ForecastProvider();
     
     forecastProvider.intialize( { 
-            fetch : fetch,
+            fetch : window.fetch.bind(window),
             callback : ( error, forecast ) => {
         
                 if ( error != null )

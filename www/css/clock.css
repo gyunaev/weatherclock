@@ -24,6 +24,10 @@ body {
     transition: background 1s ease-in-out;
 }
 
+.fulldark {
+    background-color: black;
+}
+
 .startup-message {
     font-size: 500%;
 }
@@ -108,11 +112,13 @@ body {
 #nowtime {
     font-size: 500%;
     display: block;
+    white-space: nowrap;
 }
 
 #nowdate {
     font-size: 250%;
     display: block;
+    white-space: nowrap;
 }
 
 #nowtemp {

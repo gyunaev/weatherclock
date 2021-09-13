@@ -107,18 +107,6 @@ class ForecastProvider
         // Store the arguments
         this.config = config;
         
-        // Load the stored current, hourly and air quality data 
-        //this.forecast = this.validateAndParseJSON( window.localStorage.getItem( "storedforecast" ) );
-        //this.current = this.validateAndParseJSON( window.localStorage.getItem( "storedcurrent" ) );
-        //this.airquality = this.validateAndParseJSON( window.localStorage.getItem( "storedairquality" ) );
-
-        if ( this.forecast != null && this.current != null )
-        {
-            this.textStatus = "Weather restored from settings";
-            this.lastUpdate = new Date();
-            this.config.callback( null );
-        }
-        
         // Run the worker asyncrhonously
         setTimeout( this._timerCallback.bind( this ), 0 );
         
@@ -190,12 +178,20 @@ class ForecastProvider
     
     async _retrieve( url, datatype = "json" )
     {
-        let fetcher = this.config.fetch;
-        
-        return new Promise( function(resolve, reject) {
-            fetcher( url )
-                .then( res => resolve( datatype == "json" ? res.json() : res.body() ) )
-                .catch ( res => resolve( null ) ) });
+        try
+        {
+            const response = await this.config.fetch( url, {
+                        method: 'GET',
+                        cache: 'no-store'
+                     } );
+            
+            return response.json();
+        }
+        catch ( ex )
+        {
+            console.log( ex );
+            return null;
+        }
     }
     
     async resolveStations()
@@ -297,7 +293,7 @@ class ForecastProvider
         let daily = [];
         let now = new Date();
         let currentday = new Date().getDay();
-        
+
         for ( let h of hourlydata.properties.periods )
         {
             // Wind is reported with 'mph' suffix and we only need the number
@@ -306,7 +302,6 @@ class ForecastProvider
             if ( m != null )
                 h.windSpeed = m[1];
 
-            let icondata = this.parseFAicon( h.icon, h.isDaytime );
             let ts = new Date( h.startTime );
             
             // This is current weather
@@ -321,7 +316,10 @@ class ForecastProvider
                     relativeHumidity : "---"
                 };
 
-                // Map the icon to get the FA icon and background image
+                // Map the icon to get the FA icon and background image using current timestamp
+                let now = new Date();
+                let suntime = SunCalc.getTimes( now, coords[0], coords[1] );
+                let icondata = this.parseFAicon( h.icon, ( now >= suntime.sunrise && now <= suntime.sunset ) );
                 this.current.faicon = icondata.fa;
                 this.current.background = icondata.bg;
                 
@@ -330,13 +328,7 @@ class ForecastProvider
                 else
                     this.current.israin = false;
 
-                // Adjust the icon for day/night
-                let suntimes = SunCalc.getTimes( new Date(), coords[0], coords[1] );
-            
-                this.current.faicon = "fas " + this.adjustForDaynight( this.current.faicon, suntimes, "sun", "moon" );
-                this.current.background = this.adjustForDaynight( this.current.background, suntimes, "day", "night" );
                 this.lastUpdateCurrent = new Date();
-                
                 continue;
             }
 
@@ -346,6 +338,9 @@ class ForecastProvider
                 daily.push( { startTime : ts, descs : [], icons : [], temperatureHigh : -1, temperatureLow : 9999, rainhours : 0, windSpeedLow : 9999, windSpeedHigh: 0, hourlyIndex : hourly.length } );
                 currentday = ts.getUTCDay();
             }
+
+            let suntime = SunCalc.getTimes( ts, coords[0], coords[1] );
+            let icondata = this.parseFAicon( h.icon, ( ts >= suntime.sunrise && ts <= suntime.sunset ) );
             
             // Store the hourly forecast
             hourly.push({
@@ -372,7 +367,7 @@ class ForecastProvider
                 daily[ index ].temperatureLow = Math.min( daily[ index ].temperatureLow, h.temperature );
                 
                 // Store for future counting - we only count weather between 7am and 8pm
-                let faicon = this.parseFAicon( h.icon );
+                let faicon = this.parseFAicon( h.icon, true );
                 
                 if ( ts.getHours() > 6 && ts.getHours() < 21 )
                 {
@@ -397,10 +392,12 @@ class ForecastProvider
             h.faicon = h.icon;
             
             // thanks Vladimir Agafonkin for a great library: https://github.com/mourner/suncalc/blob/master/suncalc.js
-            h.suntimes = SunCalc.getTimes( new Date( h.startTime ), coords[0], coords[1] );
+            let suntimes = SunCalc.getTimes( new Date( h.startTime ), coords[0], coords[1] );
+            h.suntimes = { sunrise : suntimes.sunrise, sunset : suntimes.sunser };
         }
         
-        let forecast = { daily : daily, hourly : hourly, suntimes : SunCalc.getTimes( new Date(), coords[0], coords[1] ) };
+        let suntimes_now = SunCalc.getTimes( new Date(), coords[0], coords[1] );
+        let forecast = { daily : daily, hourly : hourly, suntimes : { sunrise : suntimes_now.sunrise, sunset : suntimes_now.sunset } };
         
         // Set last/next update
         this.lastUpdateForecast = new Date();
@@ -409,6 +406,7 @@ class ForecastProvider
         this.forecast = forecast;
         
         //window.localStorage.setItem( "storedforecast", JSON.stringify( this.forecast ) );
+        console.log( "hourly", forecast.hourly.length );
         console.log( "Weather forecast updated, next update: %s", this.nextForecastUpdate );
     }
 
@@ -421,7 +419,7 @@ class ForecastProvider
         
         if ( aquidata === null || aquidata.data === undefined || aquidata.data.aqi === undefined )
         {
-            this.logRemoteError( "AQI update failed" );
+            this.reportError( "AQI update failed" );
             this.textStatus = "AQI update failed";
             this.airquality = "N/A";
         }
@@ -430,32 +428,6 @@ class ForecastProvider
         
         this.nextAqiUpdate = this.getEpoch() + 60;
     }    
-    
-    adjustForDaynight( icon, suntimes, day, night )
-    {
-        if ( !icon.endsWith( '-' ) )
-            return icon;
-            
-        let doesCSSexist = function( selector )
-                {
-                    let selc = "." + selector;
-                    for ( let st of document.styleSheets )
-                        for ( let s of st.rules )
-                            if ( s.cssText === selc )
-                                return true;
-                            
-                    return false;
-                };
-
-
-        let suffix = day;
-        let now = new Date();
-        
-        if ( now < suntimes.sunrise || now > suntimes.sunset )
-            suffix = night;
-        
-        return icon + suffix;            
-    }
     
     validateAndParseJSON( text )
     {
@@ -469,7 +441,7 @@ class ForecastProvider
                     return json;
 
             }
-            catch ( ex ) { console.log( "failed to parse json: %j", ex ); }
+            catch ( ex ) { console.log( "failed to parse json: %j\n%s", ex,text ); }
         }
         
         return null;
