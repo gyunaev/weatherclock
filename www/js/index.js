@@ -105,7 +105,7 @@ var errorMessages = [];
 // An original statusbar message (shown when no errors)
 var originalStatusMessage = "";
 
-var screenDarkened = false;
+var screenDarkened = 0;
 
 function applySettings( data )
 {
@@ -300,8 +300,21 @@ function calculateTempColor( temp )
 
 function updateUI( redrawForecast )
 {
+    // If the screen is darkened, see if its sunrise time, and turn the screen back on
+    if ( screenDarkened != 0 )
+    {
+        // If we triggered screen darkness when it was daytime, wait until its night to reset it
+        if ( screenDarkened == -1 && !forecastProvider.status().current.isDaytime )
+            screenDarkened = 1;
+        
+        if ( screenDarkened == 1 && forecastProvider.status().current.isDaytime )
+            restoreBrightness();
+        
+        return;
+    }
+        
     // If settings UI is visible, do not update the UI
-    if ( screenDarkened == true || $("#settingswindow").is(":visible") )
+    if ( $("#settingswindow").is(":visible") )
         return;
     
     // If splash screen is visible, hide it and show main window
@@ -596,7 +609,7 @@ function restoreBrightness()
     // Restore the screen if darkened
     if ( screenDarkened )
     {
-        screenDarkened = false;
+        screenDarkened = 0;
         $("body").removeClass();
         $("#mainwindow").fadeIn();
         updateUI( true );        
@@ -613,7 +626,7 @@ function restoreBrightness()
     cordova.plugins.brightness.setBrightness( 1, function(){}, function(){} );
     
     // Activate the immersive mode again
-    AndroidFullScreen.immersiveMode( function(){}, function(){} );    
+    AndroidFullScreen.immersiveMode( function(){}, function(){} );
 }
 
 function triggerZeroBrightness()
@@ -629,12 +642,13 @@ function triggerZeroBrightness()
                 brighnessTimeoutHandle = null;
             }
             
-            cordova.plugins.brightness.setBrightness( 0, function(){}, function(){} );
+            cordova.plugins.brightness.setBrightness( 0, ()=>{}, ()=>{} );
+            
             $("#mainwindow").hide();
             $("body").removeClass();
             $("body").addClass("fulldark");
             
-            screenDarkened = true;
+            screenDarkened = forecastProvider.status().current.isDaytime ? -1 : 1;
             
         }, 1000 );    
 }

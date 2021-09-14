@@ -319,7 +319,9 @@ class ForecastProvider
                 // Map the icon to get the FA icon and background image using current timestamp
                 let now = new Date();
                 let suntime = SunCalc.getTimes( now, coords[0], coords[1] );
-                let icondata = this.parseFAicon( h.icon, ( now >= suntime.sunrise && now <= suntime.sunset ) );
+                this.current.isDaytime = ( now >= suntime.sunrise && now <= suntime.sunset );
+
+                let icondata = this.parseFAicon( h.icon, this.current.isDaytime );
                 this.current.faicon = icondata.fa;
                 this.current.background = icondata.bg;
                 
