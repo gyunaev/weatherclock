@@ -272,6 +272,8 @@ class ForecastProvider
     
     async updateForecast()
     {
+        const FORECAST_DAYS = 5;
+        
         if ( this.config.forecastUrlHourly == null && ! await this.resolveStations() )
             return;
         
@@ -337,7 +339,9 @@ class ForecastProvider
             // Did the day change? Init the structure
             if ( ts.getDay() != currentday )
             {
-                daily.push( { startTime : ts, descs : [], icons : [], temperatureHigh : -1, temperatureLow : 9999, rainhours : 0, windSpeedLow : 9999, windSpeedHigh: 0, hourlyIndex : hourly.length } );
+                if ( daily.length < FORECAST_DAYS )
+                    daily.push( { startTime : ts, descs : [], icons : [], temperatureHigh : -1, temperatureLow : 9999, rainhours : 0, windSpeedLow : 9999, windSpeedHigh: 0, hourlyIndex : hourly.length } );
+                
                 currentday = ts.getUTCDay();
             }
 
@@ -358,27 +362,30 @@ class ForecastProvider
             });
 
             // Store some data in daily
-            let index = daily.length - 1;
-            
-            if ( index >= 0 )
+            if ( daily.length <= FORECAST_DAYS )
             {
-                daily[ index ].windSpeedLow = Math.min( daily[ index ].windSpeedLow, h.windSpeed );
-                daily[ index ].windSpeedHigh = Math.max( daily[ index ].windSpeedHigh, h.windSpeed );
+                let index = daily.length - 1;
                 
-                daily[ index ].temperatureHigh = Math.max( daily[ index ].temperatureHigh, h.temperature );
-                daily[ index ].temperatureLow = Math.min( daily[ index ].temperatureLow, h.temperature );
-                
-                // Store for future counting - we only count weather between 7am and 8pm
-                let faicon = this.parseFAicon( h.icon, true );
-                
-                if ( ts.getHours() > 6 && ts.getHours() < 21 )
+                if ( index >= 0 )
                 {
-                    daily[ index ].descs.push( h.shortForecast );
-                    daily[ index ].icons.push( icondata.fa );
+                    daily[ index ].windSpeedLow = Math.min( daily[ index ].windSpeedLow, h.windSpeed );
+                    daily[ index ].windSpeedHigh = Math.max( daily[ index ].windSpeedHigh, h.windSpeed );
+                    
+                    daily[ index ].temperatureHigh = Math.max( daily[ index ].temperatureHigh, h.temperature );
+                    daily[ index ].temperatureLow = Math.min( daily[ index ].temperatureLow, h.temperature );
+                    
+                    // Store for future counting - we only count weather between 7am and 8pm
+                    let faicon = this.parseFAicon( h.icon, true );
+                    
+                    if ( ts.getHours() > 6 && ts.getHours() < 21 )
+                    {
+                        daily[ index ].descs.push( h.shortForecast );
+                        daily[ index ].icons.push( icondata.fa );
+                    }
+                    
+                    if ( icondata.rain )
+                        daily[ index ].rainhours++;
                 }
-                
-                if ( icondata.rain )
-                    daily[ index ].rainhours++;
             }
         }
     
@@ -398,17 +405,22 @@ class ForecastProvider
             h.suntimes = { sunrise : suntimes.sunrise, sunset : suntimes.sunser };
         }
         
+        if ( daily.length < FORECAST_DAYS )
+        {
+            this.nextForecastUpdate = this.getEpoch() + 30;
+            this.textStatus = "Failed to receive full forecast";
+            console.log( "Incomplete weather forecast received: %j", hourlydata );
+            return;
+        }
+        
         let suntimes_now = SunCalc.getTimes( new Date(), coords[0], coords[1] );
-        let forecast = { daily : daily, hourly : hourly, suntimes : { sunrise : suntimes_now.sunrise, sunset : suntimes_now.sunset } };
         
         // Set last/next update
         this.lastUpdateForecast = new Date();
         this.nextForecastUpdate = this.getEpoch() + 1800;
         this.textStatus = "New forecast received from NOAA";
-        this.forecast = forecast;
+        this.forecast = { daily : daily, hourly : hourly, suntimes : { sunrise : suntimes_now.sunrise, sunset : suntimes_now.sunset } };
         
-        //window.localStorage.setItem( "storedforecast", JSON.stringify( this.forecast ) );
-        console.log( "hourly", forecast.hourly.length );
         console.log( "Weather forecast updated, next update: %s", this.nextForecastUpdate );
     }
 
