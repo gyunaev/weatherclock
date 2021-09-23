@@ -1,7 +1,22 @@
 //
 // Self-updates the app upon request
 
+var clickButtonUponInstall = false;
+
 var appupdater = {
+    
+    initialize : function()
+    {
+        AutoinstallPlugin.register( (evt)=>{
+            //console.log( "event callback", evt );
+    
+            if ( clickButtonUponInstall && evt.root.packageName == "com.android.packageinstaller" && evt.root.children[0].text == "SmartClock" )
+            {
+                console.log("Installation screen is here, calling the install");
+                AutoinstallPlugin.clickButton( "Install",  (res)=>{ clickButtonUponInstall = false; }, (res)=>{  console.log( "error", res ) } );
+            }            
+        });
+    },
  
     setMessage : function( msg, autoClose = false )
     {
@@ -53,6 +68,7 @@ var appupdater = {
                             fileWriter.onwriteend = function(e) {
                                 
                                 appupdater.setMessage( "Runnign the installer", true );
+                                clickButtonUponInstall = true;
                                 
                                 window.plugins.webintent.startActivity({
                                             action: window.plugins.webintent.ACTION_VIEW,

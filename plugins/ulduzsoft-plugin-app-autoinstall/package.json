@@ -1,0 +1,13 @@
+{
+  "bundleDependencies": false,
+  "cordova": {
+    "id": "ulduzsoft-plugin-app-autoinstall",
+    "platforms": [
+      "android"
+    ]
+  },
+  "deprecated": false,
+  "description": "This plugin uses Android Accessibility service to automatically install the application updates which are delivered through custom channel",
+  "name": "ulduzsoft-plugin-app-autoinstall",
+  "version": "1.0.0"
+}

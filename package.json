@@ -13,7 +13,6 @@
   "author": "Apache Cordova Team",
   "license": "Apache-2.0",
   "dependencies": {
-    "cordova-android": "^8.0.0",
     "cordova-plugin-apkinstaller": "^1.0.1",
     "cordova-plugin-autostart": "^2.3.0",
     "cordova-plugin-brightness": "^0.2.0",
@@ -23,10 +22,13 @@
     "node-fetch": "^2.6.2"
   },
   "devDependencies": {
+    "cordova-accessibility-plugin": "file:../waccessibility/ulduzsoft-plugin-app-autoinstall",
+    "cordova-android": "^9.1.0",
     "cordova-disable-http-cache": "^1.0.0",
     "cordova-fetch": "^3.0.1",
     "cordova-plugin-powermanagement-orig": "git+https://github.com/boltex/cordova-plugin-powermanagement.git",
-    "cordova-plugin-whitelist": "^1.3.4"
+    "cordova-plugin-whitelist": "^1.3.4",
+    "ulduzsoft-plugin-app-autoinstall": "file:../waccessibility/ulduzsoft-plugin-app-autoinstall"
   },
   "cordova": {
     "plugins": {
@@ -36,7 +38,8 @@
       "cordova-plugin-fullscreen": {},
       "cordova-plugin-file": {},
       "cordova-webintent": {},
-      "cordova-disable-http-cache": {}
+      "cordova-disable-http-cache": {},
+      "ulduzsoft-plugin-app-autoinstall": {}
     },
     "platforms": [
       "android"

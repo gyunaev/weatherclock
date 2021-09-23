@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<plugin xmlns="http://apache.org/cordova/ns/plugins/1.0"
+    id="ulduzsoft-plugin-app-autoinstall"
+    version="1.0.0">
+    <name>App Autoinstall Plugin</name>
+    <description>A cordova plugin that autoinstalls an updated app by clicking "install" button programmatically</description>
+    <license>BSD-3</license>
+    <keywords></keywords>
+    <repo></repo>
+    <platform name="android">
+      <js-module src="www/plugin.js" name="plugin">
+        <runs/>
+        <clobbers target="AutoinstallPlugin" />
+      </js-module>
+      <config-file target="res/xml/config.xml" parent="/*">
+        <feature name="AutoinstallPlugin">
+          <param name="android-package" value="com.ulduzsoft.AutoinstallPlugin" />
+          <param name="onload" value="true" />
+        </feature>
+      </config-file>
+      <config-file target="AndroidManifest.xml" parent="/manifest/application">
+        <service
+            android:name="com.ulduzsoft.AutoinstallService"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:label="@string/app_name" 
+            android:enabled="true" 
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService"/>
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/autoinstall_service_config"/>
+        </service>
+      </config-file>
+
+      <source-file src="src/android/com/ulduzsoft/AutoinstallPlugin.java" target-dir="src/com/ulduzsoft/" />
+      <source-file src="src/android/com/ulduzsoft/AutoinstallService.java" target-dir="src/com/ulduzsoft/" />
+      <source-file src="res/autoinstall_service_config.xml" target-dir="res/xml/" />      
+    </platform>
+</plugin>

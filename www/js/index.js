@@ -798,6 +798,9 @@ function setup()
     
         // Any click on body restores the brightness back
         $("body").click( restoreBrightness );
+        
+        // Activate auto-updater service
+        appupdater.initialize();
     }
     
     // If we don't have coordinates, pop the settings
