@@ -77,6 +77,9 @@ var config =
         
     // URL to download the updated APKs from (when Update button is pressed in settings). If null, APK update is not supported
     appUpdaterApkURL : null,
+    
+    // URL to download the autoupdate index (this also enables auto-updating)
+    appUpdaterIndexURL : null,
 
     // UI modifications, if any, stored as JS code which runs on start. Can be used to customize the clock.
     // It is eval()ed, so beware. Could be either a string or array (in which case its joined \n)
@@ -576,7 +579,7 @@ function setupSettings()
     
     // Handle UPDATE button
     $("#settings-update").click( function() {
-        appupdater.checkForUpdates();
+        appupdater.downloadAndInstall();
     });
 }
 

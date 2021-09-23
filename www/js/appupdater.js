@@ -16,6 +16,38 @@ var appupdater = {
                 AutoinstallPlugin.clickButton( "Install",  (res)=>{ clickButtonUponInstall = false; }, (res)=>{  console.log( "error", res ) } );
             }            
         });
+        
+        if ( config.appUpdaterIndexURL )
+            setInterval( this.checkUpdate.bind( this ), 60000 );
+    },
+    
+    // Download the JSON file containing the latest release info
+    checkUpdate : async function()
+    {
+        try
+        {
+            const response = await window.fetch( config.appUpdaterIndexURL, {
+                        method: 'GET',
+                        cache: 'no-store'
+                     } );
+            
+            let info = await response.json();
+            console.log( "Checked app update, available version %s, ours %s", info.updated, applicationBuiltEpoch );
+            
+            if ( typeof info.updated === "undefined" || info.updated <= applicationBuiltEpoch )
+                return;
+            
+            // Set it so install is no longer triggered
+            applicationBuiltEpoch = info.updated;
+            
+            // Start installing
+            console.log( "Triggering auto-install from URL %s", info.url );
+            this.downloadAndInstall( info.url );
+        }
+        catch ( ex )
+        {
+            console.log( ex );
+        }
     },
  
     setMessage : function( msg, autoClose = false )
@@ -26,15 +58,20 @@ var appupdater = {
             setTimeout( ()=>{ $("#app-download-dialog").hide(); }, 2500 );
     },
     
-    checkForUpdates : function()
+    downloadAndInstall : function( url = null )
     {
-        if ( typeof config.appUpdaterApkURL === 'undefined' )
-            return;
+        if ( url == null )
+        {
+            if ( typeof config.appUpdaterApkURL === 'undefined' )
+                return;
+            
+            url = config.appUpdaterApkURL;
+        }
         
         var oReq = new XMLHttpRequest();
 
         // Make sure you add the domain name to the Content-Security-Policy <meta> element.
-        oReq.open( "GET", config.appUpdaterApkURL, true);
+        oReq.open( "GET", url, true);
 
         appupdater.setMessage( "Preparing to download the APK file" );
         $("#app-download-progress").css('width', '2%');
