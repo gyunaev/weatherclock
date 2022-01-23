@@ -19,7 +19,7 @@
     "cordova-plugin-file": "^6.0.2",
     "cordova-plugin-fullscreen": "^1.2.0",
     "cordova-webintent": "github:cordova-misc/cordova-webintent",
-    "node-fetch": "^2.6.2"
+    "node-fetch": "^3.1.1"
   },
   "devDependencies": {
     "cordova-accessibility-plugin": "file:../waccessibility/ulduzsoft-plugin-app-autoinstall",
