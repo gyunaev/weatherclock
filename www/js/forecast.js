@@ -17,6 +17,7 @@ class ForecastProvider
         this.lastUpdateForecast = null;
         this.lastUpdateCurrent = null;
         this.nextGridRecheckTime = 0;
+        this.firstForecast = null;
 
         // Trigger both updates immediately
         this.nextAqiUpdate = new Date();
@@ -106,7 +107,7 @@ class ForecastProvider
     {
         // Store the arguments
         this.config = config;
-        
+
         // Run the worker asyncrhonously
         setTimeout( this._timerCallback.bind( this ), 0 );
         
@@ -165,7 +166,7 @@ class ForecastProvider
 
     debugStatus()
     {
-        return this.textStatus + " " + this.lastSuccessfulUpdate + " " + this.nextGridRecheckTime;
+        return this.textStatus + " " + this.firstForecast + " " + this.config.forecastUrlHourly;
     }
 
     // Triggers a forecast update
@@ -182,7 +183,8 @@ class ForecastProvider
         {
             const response = await this.config.fetch( url, {
                         method: 'GET',
-                        cache: 'no-store'
+                        cache: 'no-store',
+                        headers : { Accept : "application/json" }
                      } );
             
             return response.json();
@@ -196,6 +198,13 @@ class ForecastProvider
     
     async resolveStations()
     {
+        if ( this.config.overrideForecastUrlHourly )
+        {
+            this.config.forecastUrlHourly = this.config.overrideForecastUrlHourly;
+            console.log( "resolveStations called - forecast URL overridden to %s", this.config.forecastUrlHourly );
+            return;
+        }
+            
         if ( this.config.coordinates == "" )
             return;
         
@@ -215,18 +224,6 @@ class ForecastProvider
 
         this.config.forecastUrlHourly = info.properties.forecastHourly;
     
-        // Retrieve the observation stations
-        let statinfo = await this._retrieve( info.properties.observationStations );
-
-        if ( statinfo == null || statinfo.observationStations === undefined )
-        {
-            console.log("error: incorrect data returned by /stations/ API");
-            return false;
-        }
-    
-        // Take the first five stations
-        this.config.forecastUrlsCurrent = statinfo.observationStations.slice( 0, 4 );
-        
         // Grid updated
         this.nextGridRecheckTime = this.getEpoch() + 86400;
 
@@ -277,7 +274,7 @@ class ForecastProvider
         if ( this.config.forecastUrlHourly == null && ! await this.resolveStations() )
             return;
         
-        console.log( "Updating the weather forecast" );
+        console.log( "Updating the weather forecast from %s", this.config.forecastUrlHourly );
         let hourlydata = await this._retrieve( this.config.forecastUrlHourly );
         
         if ( hourlydata === null || hourlydata.properties === undefined || hourlydata.properties.periods === undefined )
@@ -295,6 +292,7 @@ class ForecastProvider
         let daily = [];
         let now = new Date();
         let currentday = new Date().getDay();
+        this.firstForecast = null;
 
         for ( let h of hourlydata.properties.periods )
         {
@@ -305,6 +303,9 @@ class ForecastProvider
                 h.windSpeed = m[1];
 
             let ts = new Date( h.startTime );
+            
+            if ( this.firstForecast == null )
+                this.firstForecast = ts;
             
             // This is current weather
             if ( ts < now )
@@ -418,7 +419,12 @@ class ForecastProvider
         // Set last/next update
         this.lastUpdateForecast = new Date();
         this.nextForecastUpdate = this.getEpoch() + 1800;
-        this.textStatus = "New forecast received from NOAA";
+        
+        if ( now - this.firstForecast < 4 * 3600 )
+            this.textStatus = "Up-to-date forecast received from NOAA";
+        else
+            this.textStatus = "The received forecast is stale";
+            
         this.forecast = { daily : daily, hourly : hourly, suntimes : { sunrise : suntimes_now.sunrise, sunset : suntimes_now.sunset } };
         
         console.log( "Weather forecast updated, next update: %s", this.nextForecastUpdate );

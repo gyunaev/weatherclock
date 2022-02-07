@@ -60,9 +60,9 @@ var config =
     // For weather forecast
     //
 
-    // Stores the URL to update the hourly forecast from
+    // Stores the current URL to update the hourly forecast from
     forecastUrlHourly : null,
-
+        
     // URL to download current forecast conditions from a local weather station.
     // If defined, the data is downloaded after the weather.gov data and overwrites
     // the values present there. See updateLocalConditions()
@@ -81,9 +81,8 @@ var config =
     // URL to download the autoupdate index (this also enables auto-updating)
     appUpdaterIndexURL : null,
 
-    // UI modifications, if any, stored as JS code which runs on start. Can be used to customize the clock.
-    // It is eval()ed, so beware. Could be either a string or array (in which case its joined \n)
-    uiModificationsJS : null,
+    // If this URL is specified, the clock will load Javascript from this URL and execute it. Can be used to customize the clock.
+    extraJavascriptURL : null,
     
     // Last entered remote config URL. It is NOT downloaded on every start, and only stored here to prefill the dialog
     lastRemoteConfigUrl : "",
@@ -128,15 +127,10 @@ function applySettings( data )
         }
     }
     
-    if ( config.uiModificationsJS != null )
+    if ( config.extraJavascriptURL != null )
     {
-        let code = config.uiModificationsJS;
-        
-        if ( Array.isArray( code ) )
-            code = code.join( "\n" );
-        
-        console.log( "Runnign the custom JS code:\n", code ); 
-        eval( code );
+        console.log("executing extra javascript from %s", config.extraJavascriptURL );
+        $.getScript( config.extraJavascriptURL, function success(res, st) { console.log( res, st ) } );
     }
 
     // Save the config as we have may modified it
@@ -658,12 +652,30 @@ function triggerZeroBrightness()
 
 function setup()
 {   
-    // Acquire power management lock
-    if ( typeof window.powermanagement != 'undefined' )
-        window.powermanagement.acquire();
-    
     // Load the configuration
     applySettings( window.localStorage.getItem( "config" ) );
+
+    // Extra functionality based on Cordova
+    if ( typeof cordova != 'undefined' )
+    {
+        // Activate auto-updater service
+        appupdater.initialize();
+    
+        // Start at boot
+        cordova.plugins.autoStart.enable();
+        
+        // Make sure we keep the screen on
+        cordova.plugins.brightness.setKeepScreenOn(true);  
+        
+        // Restore the brightness
+        restoreBrightness();
+        
+        // Activate fullscreen
+        AndroidFullScreen.immersiveMode( function(){}, function(){} );
+    
+        // Any click on body restores the brightness back
+        $("body").click( restoreBrightness );
+    }
 
     // Setup settings UI part
     setupSettings();
@@ -731,6 +743,7 @@ function setup()
                 $.ajax({
                     method: "GET",
                     url: url,
+                    cache: 'no-store',
                     dataType: "text"
                 })
                 .done( function( newconfig ) {
@@ -781,30 +794,9 @@ function setup()
             
             coordinates : config.coordinates,
             forecastUrlAirQuality : config.forecastUrlAirQuality,
-            forecastLocalConditionsURL : config.forecastLocalConditionsURL
+            forecastLocalConditionsURL : config.forecastLocalConditionsURL,
+            overrideForecastUrlHourly : config.forecastUrlHourly ? config.forecastUrlHourly : null
     } );
-    
-    // Extra functionality based on Cordova
-    if ( typeof cordova != 'undefined' )
-    {
-        // Start at boot
-        cordova.plugins.autoStart.enable();
-        
-        // Make sure we keep the screen on
-        cordova.plugins.brightness.setKeepScreenOn(true);  
-        
-        // Restore the brightness
-        restoreBrightness();
-        
-        // Activate fullscreen
-        AndroidFullScreen.immersiveMode( function(){}, function(){} );
-    
-        // Any click on body restores the brightness back
-        $("body").click( restoreBrightness );
-        
-        // Activate auto-updater service
-        appupdater.initialize();
-    }
     
     // If we don't have coordinates, pop the settings
     if ( config.coordinates == "" )
