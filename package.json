@@ -13,6 +13,7 @@
   "author": "Apache Cordova Team",
   "license": "Apache-2.0",
   "dependencies": {
+    "cordova": "^10.0.0",
     "cordova-plugin-apkinstaller": "^1.0.1",
     "cordova-plugin-autostart": "^2.3.0",
     "cordova-plugin-brightness": "^0.2.0",
@@ -23,7 +24,7 @@
   },
   "devDependencies": {
     "cordova-accessibility-plugin": "file:../waccessibility/ulduzsoft-plugin-app-autoinstall",
-    "cordova-android": "^9.1.0",
+    "cordova-android": "^10.0.0",
     "cordova-disable-http-cache": "^1.0.0",
     "cordova-fetch": "^3.0.1",
     "cordova-plugin-powermanagement-orig": "git+https://github.com/boltex/cordova-plugin-powermanagement.git",

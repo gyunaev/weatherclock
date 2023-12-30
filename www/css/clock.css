@@ -21,11 +21,13 @@ body {
     background-position: center center;
     background-size: cover;
     color: black;
+    --contrast-color: white;
     transition: background 1s ease-in-out;
 }
 
 .fulldark {
     background-color: black;
+    --contrast-color: white;
 }
 
 .startup-message {
@@ -44,6 +46,7 @@ body {
 .body-bg-clear-night {
     background-image: url( '../images/weather_clear_night.jpg' );
     color: white;
+    --contrast-color: black;
 }
 
 .body-bg-partly-cloudy-day {
@@ -53,6 +56,7 @@ body {
 .body-bg-partly-cloudy-night {
     background-image: url( '../images/weather_partly_cloudy_night.jpg' );
     color: white;
+    --contrast-color: black;
 }
 
 .body-bg-cloudy {
@@ -499,26 +503,29 @@ label {
     color: rgb( 40, 40, 255 );    
 }
 
-.custom-output {
-    flex-direction: row;
-    flex-grow: 1;
-    text-align: center;
-    font-size: 150%;
-    font-weight:bold;
-    text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
-}
-
 .bottom-row {
     display: flex;
     flex-direction: row;
+    align-items: flex-end;
     justify-content: space-between;
+    width: 100%;
+    bottom: 1%;
+}
+
+#bottom-row-buttons{
+    flex-direction: row;
+}
+.custom-output {
+    flex-direction: row;
+    flex: 4;
+    text-align: center;
+    font-size: 250%;
+    font-weight:bold;
+    text-shadow: -1px -1px 0 var(--contrast-color), 1px -1px 0 var(--contrast-color), -1px 1px 0 var(--contrast-color), 1px 1px 0 var(--contrast-color);
 }
 
 #statusmessage {
     flex-direction: row;
     text-align: right;
     align-self: end;
-    position: absolute;   
-    right: 1%;
-    bottom: 1%;
 }

@@ -187,7 +187,7 @@ class ForecastProvider
                         headers : { Accept : "application/json" }
                      } );
             
-            return response.json();
+            return await response.json();
         }
         catch ( ex )
         {
@@ -479,6 +479,9 @@ class ForecastProvider
             if ( typeof jsondata == "string" )
                 jsondata = JSON.parse( jsondata );
             
+            if ( !this.current )
+                this.current = { "temperature" : "0", "barometricPressure" : "0", "relativeHumidity" : "0", "summary" : "N/A", windSpeed : "N/A" };
+
             for ( let e of Object.keys( this.current ) )
                 if ( typeof jsondata[e] !== "undefined" )
                     this.current[e] = jsondata[e]
